@@ -17,6 +17,14 @@ defmodule SberbankWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :index
+
+    resources "/employers", EmployerController
+    resources "/competencies", CompetenceController
+    resources "/employer_competencies", EmployerCompetenceController
+
+    resources "/customers", CustomerController
+    resources "/tickets", TicketController
+    resources "/ticket_operators", TicketOperatorController
   end
 
   # Other scopes may use custom stacks.

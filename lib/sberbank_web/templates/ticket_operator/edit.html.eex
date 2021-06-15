@@ -1,0 +1,5 @@
+<h1>Edit Ticket operator</h1>
+
+<%= render "form.html", Map.put(assigns, :action, Routes.ticket_operator_path(@conn, :update, @ticket_operator)) %>
+
+<span><%= link "Back", to: Routes.ticket_operator_path(@conn, :index) %></span>

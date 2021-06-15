@@ -1,0 +1,18 @@
+<h1>Show Employer</h1>
+
+<ul>
+
+  <li>
+    <strong>Name:</strong>
+    <%= @employer.name %>
+  </li>
+
+  <li>
+    <strong>Admin:</strong>
+    <%= @employer.admin %>
+  </li>
+
+</ul>
+
+<span><%= link "Edit", to: Routes.employer_path(@conn, :edit, @employer) %></span>
+<span><%= link "Back", to: Routes.employer_path(@conn, :index) %></span>

@@ -1,0 +1,18 @@
+<h1>Show Competence</h1>
+
+<ul>
+
+  <li>
+    <strong>Name:</strong>
+    <%= @competence.name %>
+  </li>
+
+  <li>
+    <strong>Letter:</strong>
+    <%= @competence.letter %>
+  </li>
+
+</ul>
+
+<span><%= link "Edit", to: Routes.competence_path(@conn, :edit, @competence) %></span>
+<span><%= link "Back", to: Routes.competence_path(@conn, :index) %></span>

@@ -1,0 +1,28 @@
+<h1>Listing Employers</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Admin</th>
+
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+<%= for employer <- @employers do %>
+    <tr>
+      <td><%= employer.name %></td>
+      <td><%= employer.admin %></td>
+
+      <td>
+        <span><%= link "Show", to: Routes.employer_path(@conn, :show, employer) %></span>
+        <span><%= link "Edit", to: Routes.employer_path(@conn, :edit, employer) %></span>
+        <span><%= link "Delete", to: Routes.employer_path(@conn, :delete, employer), method: :delete, data: [confirm: "Are you sure?"] %></span>
+      </td>
+    </tr>
+<% end %>
+  </tbody>
+</table>
+
+<span><%= link "New Employer", to: Routes.employer_path(@conn, :new) %></span>

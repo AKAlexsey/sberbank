@@ -1,0 +1,24 @@
+<h1>Listing Employer competencies</h1>
+
+<table>
+  <thead>
+    <tr>
+
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+<%= for employer_competence <- @employer_competencies do %>
+    <tr>
+
+      <td>
+        <span><%= link "Show", to: Routes.employer_competence_path(@conn, :show, employer_competence) %></span>
+        <span><%= link "Edit", to: Routes.employer_competence_path(@conn, :edit, employer_competence) %></span>
+        <span><%= link "Delete", to: Routes.employer_competence_path(@conn, :delete, employer_competence), method: :delete, data: [confirm: "Are you sure?"] %></span>
+      </td>
+    </tr>
+<% end %>
+  </tbody>
+</table>
+
+<span><%= link "New Employer competence", to: Routes.employer_competence_path(@conn, :new) %></span>
