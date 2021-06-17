@@ -16,7 +16,7 @@ config :sberbank, SberbankWeb.Endpoint,
   secret_key_base: "tv//srWrWDtxLIHnHS+GOpppqKDis6zvvGmRaroZhaZxE1wPZtISeo2OfTLagU0q",
   render_errors: [view: SberbankWeb.ErrorView, accepts: ~w(html json), layout: false],
   pubsub_server: Sberbank.PubSub,
-  live_view: [signing_salt: "EEu59h4f"]
+  live_view: [signing_salt: "qhEyWZemQUNh+0Hw7mBKdSijLc3sV5k"]
 
 # Configures Elixir's Logger
 config :logger, :console,
