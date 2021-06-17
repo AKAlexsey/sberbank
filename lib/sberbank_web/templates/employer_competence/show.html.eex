@@ -1,8 +1,0 @@
-<h1>Show Employer competence</h1>
-
-<ul>
-
-</ul>
-
-<span><%= link "Edit", to: Routes.employer_competence_path(@conn, :edit, @employer_competence) %></span>
-<span><%= link "Back", to: Routes.employer_competence_path(@conn, :index) %></span>

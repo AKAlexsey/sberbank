@@ -26,7 +26,6 @@ defmodule SberbankWeb.Router do
 
     resources "/customers", CustomerController
     resources "/tickets", TicketController
-    resources "/ticket_operators", TicketOperatorController
   end
 
   # Other scopes may use custom stacks.

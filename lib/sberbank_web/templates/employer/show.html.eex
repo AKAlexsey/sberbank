@@ -14,5 +14,16 @@
 
 </ul>
 
+<div>
+  <hr/>
+  <h5>Operator competencies</h5>
+  <ul>
+    <%= for competence <- @employer.competencies do%>
+      <li><%= "#{competence.id} - #{competence.name} - #{competence.letter}" %></li>
+    <% end %>
+  </ul>
+  <hr/>
+</div>
+
 <span><%= link "Edit", to: Routes.employer_path(@conn, :edit, @employer) %></span>
 <span><%= link "Back", to: Routes.employer_path(@conn, :index) %></span>

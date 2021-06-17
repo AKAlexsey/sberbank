@@ -5,15 +5,47 @@
     </div>
   <% end %>
 
-  <%= label f, :name %>
-  <%= text_input f, :name %>
-  <%= error_tag f, :name %>
+  <div class="form-group">
+    <%= label f, :name %>
+    <%= text_input f, :name, class: "form-control #{form_input_error_class(f, :name)}" %>
+    <%= error_tag f, :name %>
+  </div>
 
-  <%= label f, :admin %>
-  <%= checkbox f, :admin %>
-  <%= error_tag f, :admin %>
+  <div class="form-group">
+    <%= label f, :admin %>
+    <%= checkbox f, :admin, class: "form-control #{form_input_error_class(f, :admin)}" %>
+    <%= error_tag f, :admin %>
+  </div>
 
-  <div>
-    <%= submit "Save" %>
+  <%= if !form_is_new?(f) do %>
+    <div class="form-group">
+      <%= label f, :employer_competencies_list %>
+      <%= text_input f, :employer_competencies_list, class: "form-control" %>
+    </div>
+
+    <div>
+      <hr/>
+      <h5>Operator competencies</h5>
+      <ul>
+        <%= inputs_for f, :employer_competencies, fn employer_competencies_form -> %>
+          <% competence = employer_competencies_form.data.competence %>
+          <li><%= "#{competence.id} - #{competence.name} - #{competence.letter}" %></li>
+        <% end %>
+      </ul>
+      <hr/>
+    </div>
+
+    <div>
+      <h5>Competencies data</h5>
+      <ul>
+        <%= for competence <- @competences do %>
+        <li><%= "#{competence.id} - #{competence.name} - #{competence.letter}" %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-group mt-3">
+    <%= submit "Save", class: "btn btn-lg btn-primary" %>
   </div>
 <% end %>

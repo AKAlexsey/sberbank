@@ -75,6 +75,7 @@ defmodule SberbankWeb.CustomerControllerTest do
     test "deletes chosen customer", %{conn: conn, customer: customer} do
       conn = delete(conn, Routes.customer_path(conn, :delete, customer))
       assert redirected_to(conn) == Routes.customer_path(conn, :index)
+
       assert_error_sent 404, fn ->
         get(conn, Routes.customer_path(conn, :show, customer))
       end

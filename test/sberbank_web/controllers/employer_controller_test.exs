@@ -75,6 +75,7 @@ defmodule SberbankWeb.EmployerControllerTest do
     test "deletes chosen employer", %{conn: conn, employer: employer} do
       conn = delete(conn, Routes.employer_path(conn, :delete, employer))
       assert redirected_to(conn) == Routes.employer_path(conn, :index)
+
       assert_error_sent 404, fn ->
         get(conn, Routes.employer_path(conn, :show, employer))
       end

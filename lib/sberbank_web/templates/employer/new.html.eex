@@ -2,4 +2,6 @@
 
 <%= render "form.html", Map.put(assigns, :action, Routes.employer_path(@conn, :create)) %>
 
-<span><%= link "Back", to: Routes.employer_path(@conn, :index) %></span>
+<div class="form-group mt-3">
+  <%= link "Back", to: Routes.employer_path(@conn, :index), class: "btn btn-lg btn-secondary" %>
+</div>

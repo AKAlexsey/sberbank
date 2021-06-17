@@ -75,6 +75,7 @@ defmodule SberbankWeb.TicketControllerTest do
     test "deletes chosen ticket", %{conn: conn, ticket: ticket} do
       conn = delete(conn, Routes.ticket_path(conn, :delete, ticket))
       assert redirected_to(conn) == Routes.ticket_path(conn, :index)
+
       assert_error_sent 404, fn ->
         get(conn, Routes.ticket_path(conn, :show, ticket))
       end

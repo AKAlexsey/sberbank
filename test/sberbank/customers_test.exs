@@ -150,7 +150,9 @@ defmodule Sberbank.CustomersTest do
     end
 
     test "create_ticket_operator/1 with valid data creates a ticket_operator" do
-      assert {:ok, %TicketOperator{} = ticket_operator} = Customers.create_ticket_operator(@valid_attrs)
+      assert {:ok, %TicketOperator{} = ticket_operator} =
+               Customers.create_ticket_operator(@valid_attrs)
+
       assert ticket_operator.active == true
     end
 
@@ -160,20 +162,29 @@ defmodule Sberbank.CustomersTest do
 
     test "update_ticket_operator/2 with valid data updates the ticket_operator" do
       ticket_operator = ticket_operator_fixture()
-      assert {:ok, %TicketOperator{} = ticket_operator} = Customers.update_ticket_operator(ticket_operator, @update_attrs)
+
+      assert {:ok, %TicketOperator{} = ticket_operator} =
+               Customers.update_ticket_operator(ticket_operator, @update_attrs)
+
       assert ticket_operator.active == false
     end
 
     test "update_ticket_operator/2 with invalid data returns error changeset" do
       ticket_operator = ticket_operator_fixture()
-      assert {:error, %Ecto.Changeset{}} = Customers.update_ticket_operator(ticket_operator, @invalid_attrs)
+
+      assert {:error, %Ecto.Changeset{}} =
+               Customers.update_ticket_operator(ticket_operator, @invalid_attrs)
+
       assert ticket_operator == Customers.get_ticket_operator!(ticket_operator.id)
     end
 
     test "delete_ticket_operator/1 deletes the ticket_operator" do
       ticket_operator = ticket_operator_fixture()
       assert {:ok, %TicketOperator{}} = Customers.delete_ticket_operator(ticket_operator)
-      assert_raise Ecto.NoResultsError, fn -> Customers.get_ticket_operator!(ticket_operator.id) end
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Customers.get_ticket_operator!(ticket_operator.id)
+      end
     end
 
     test "change_ticket_operator/1 returns a ticket_operator changeset" do

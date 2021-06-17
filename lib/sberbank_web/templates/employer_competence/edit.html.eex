@@ -1,5 +1,0 @@
-<h1>Edit Employer competence</h1>
-
-<%= render "form.html", Map.put(assigns, :action, Routes.employer_competence_path(@conn, :update, @employer_competence)) %>
-
-<span><%= link "Back", to: Routes.employer_competence_path(@conn, :index) %></span>

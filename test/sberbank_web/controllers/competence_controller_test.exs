@@ -56,7 +56,9 @@ defmodule SberbankWeb.CompetenceControllerTest do
     setup [:create_competence]
 
     test "redirects when data is valid", %{conn: conn, competence: competence} do
-      conn = put(conn, Routes.competence_path(conn, :update, competence), competence: @update_attrs)
+      conn =
+        put(conn, Routes.competence_path(conn, :update, competence), competence: @update_attrs)
+
       assert redirected_to(conn) == Routes.competence_path(conn, :show, competence)
 
       conn = get(conn, Routes.competence_path(conn, :show, competence))
@@ -64,7 +66,9 @@ defmodule SberbankWeb.CompetenceControllerTest do
     end
 
     test "renders errors when data is invalid", %{conn: conn, competence: competence} do
-      conn = put(conn, Routes.competence_path(conn, :update, competence), competence: @invalid_attrs)
+      conn =
+        put(conn, Routes.competence_path(conn, :update, competence), competence: @invalid_attrs)
+
       assert html_response(conn, 200) =~ "Edit Competence"
     end
   end
@@ -75,6 +79,7 @@ defmodule SberbankWeb.CompetenceControllerTest do
     test "deletes chosen competence", %{conn: conn, competence: competence} do
       conn = delete(conn, Routes.competence_path(conn, :delete, competence))
       assert redirected_to(conn) == Routes.competence_path(conn, :index)
+
       assert_error_sent 404, fn ->
         get(conn, Routes.competence_path(conn, :show, competence))
       end

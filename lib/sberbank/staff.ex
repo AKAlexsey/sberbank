@@ -17,8 +17,10 @@ defmodule Sberbank.Staff do
       [%Employer{}, ...]
 
   """
-  def list_employers do
-    Repo.all(Employer)
+  def list_employers(preload \\ []) do
+    Employer
+    |> Repo.all()
+    |> Repo.preload(preload)
   end
 
   @doc """
@@ -35,7 +37,11 @@ defmodule Sberbank.Staff do
       ** (Ecto.NoResultsError)
 
   """
-  def get_employer!(id), do: Repo.get!(Employer, id)
+  def get_employer!(id, preload \\ []) do
+    Employer
+    |> Repo.get!(id)
+    |> Repo.preload(preload)
+  end
 
   @doc """
   Creates a employer.

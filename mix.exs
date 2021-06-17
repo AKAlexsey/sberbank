@@ -43,7 +43,7 @@ defmodule Sberbank.MixProject do
       {:telemetry_poller, "~> 0.4"},
       # Tools
       {:gettext, "~> 0.11"},
-      {:jason, "~> 1.0"},
+      {:jason, "~> 1.0"}
     ]
   end
 

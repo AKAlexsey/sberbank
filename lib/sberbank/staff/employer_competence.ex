@@ -2,9 +2,14 @@ defmodule Sberbank.Staff.EmployerCompetence do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @cast_fields [:competence_id, :employer_id]
+  @required_fields [:competence_id, :employer_id]
+
+  alias Sberbank.Staff.{Competence, Employer}
+
   schema "employer_competencies" do
-    field :employer_id, :id
-    field :competence_id, :id
+    belongs_to :employer, Employer
+    belongs_to :competence, Competence
 
     timestamps()
   end
@@ -12,7 +17,9 @@ defmodule Sberbank.Staff.EmployerCompetence do
   @doc false
   def changeset(employer_competence, attrs) do
     employer_competence
-    |> cast(attrs, [])
-    |> validate_required([])
+    |> cast(attrs, @cast_fields)
+    |> cast_assoc(:competence, with: &Sberbank.Staff.Competence.changeset/2)
+    |> cast_assoc(:employer, with: &Sberbank.Staff.Employer.changeset/2)
+    |> validate_required(@required_fields)
   end
 end
