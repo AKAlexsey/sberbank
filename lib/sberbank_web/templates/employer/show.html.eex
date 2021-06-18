@@ -25,5 +25,11 @@
   <hr/>
 </div>
 
-<span><%= link "Edit", to: Routes.employer_path(@conn, :edit, @employer) %></span>
-<span><%= link "Back", to: Routes.employer_path(@conn, :index) %></span>
+<div>
+  <%= link "Operator tickets", to: Routes.employer_live_path(@conn, SberbankWeb.OperatorTicketsLive, @employer), class: "btn btn-success" %>
+</div>
+
+<div>
+  <span><%= link "Edit", to: Routes.employer_path(@conn, :edit, @employer), class: "btn btn-primary" %></span>
+  <span><%= link "Back", to: Routes.employer_path(@conn, :index), class: "btn btn-primary" %></span>
+</div>

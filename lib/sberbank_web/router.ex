@@ -20,7 +20,10 @@ defmodule SberbankWeb.Router do
 
     get "/", PageController, :index
 
-    resources "/employers", EmployerController
+    resources "/employers", EmployerController do
+      live "/tickets", OperatorTicketsLive
+    end
+
     resources "/competencies", CompetenceController
     resources "/employer_competencies", EmployerCompetenceController
 

@@ -1,0 +1,24 @@
+<section class="container">
+  <h1>Operator <%= @operator.name %> page</h1>
+</section>
+<section class="container">
+  <%= if @current_tickets == [] do %>
+    <h2>No active tickets now</h2>
+  <% else %>
+    <ul>
+      <%= for ticket <- @current_tickets do %>
+        <li>
+          <td>
+            <span class="badge badge-success"><%= ticket.id %></span>
+          </td>
+          <td>
+            <span class="btn btn-primary"><%= ticket.topic %></span>
+          </td>
+          <td>
+            Here will be the chat
+          </td>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
