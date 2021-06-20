@@ -2,6 +2,8 @@ defmodule Sberbank.Staff.Employer do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   @cast_fields [:admin, :name]
   @required_fields [:admin, :name]
 

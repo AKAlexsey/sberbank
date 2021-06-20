@@ -2,6 +2,8 @@ defmodule Sberbank.Staff.EmployerCompetence do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   @cast_fields [:competence_id, :employer_id]
   @required_fields [:competence_id, :employer_id]
 

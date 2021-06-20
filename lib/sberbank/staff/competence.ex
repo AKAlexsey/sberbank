@@ -2,6 +2,8 @@ defmodule Sberbank.Staff.Competence do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   @cast_fields [:name, :letter]
   @required_fields [:name, :letter]
 

@@ -131,7 +131,11 @@ defmodule Sberbank.Customers do
       ** (Ecto.NoResultsError)
 
   """
-  def get_ticket!(id), do: Repo.get!(Ticket, id)
+  def get_ticket!(id, preload \\ []) do
+    Ticket
+    |> Repo.get!(id)
+    |> Repo.preload(preload)
+  end
 
   @doc """
   Creates a ticket.

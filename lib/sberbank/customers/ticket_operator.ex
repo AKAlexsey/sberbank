@@ -2,6 +2,8 @@ defmodule Sberbank.Customers.TicketOperator do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   schema "ticket_operators" do
     field :active, :boolean, default: false
     field :employer_id, :id

@@ -2,6 +2,8 @@ defmodule Sberbank.Customers.Customer do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   schema "customers" do
     field :email, :string
 
