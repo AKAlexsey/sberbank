@@ -35,7 +35,11 @@ defmodule Sberbank.Customers do
       ** (Ecto.NoResultsError)
 
   """
-  def get_customer!(id), do: Repo.get!(Customer, id)
+  def get_customer!(id, preload \\ []) do
+    Customer
+    |> Repo.get!(id)
+    |> Repo.preload(preload)
+  end
 
   @doc """
   Creates a customer.

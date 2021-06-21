@@ -2,7 +2,7 @@ defmodule Sberbank.Customers.Ticket do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Sberbank.Customers.Customer
+  alias Sberbank.Customers.{Customer, TicketOperator}
   alias Sberbank.Staff.Competence
 
   @type t :: %__MODULE__{}
@@ -16,6 +16,9 @@ defmodule Sberbank.Customers.Ticket do
 
     belongs_to :competence, Competence
     belongs_to :customer, Customer
+
+    has_many :ticket_operators, TicketOperator
+    has_many :operators, through: [:ticket_operators, :employer]
 
     timestamps()
   end

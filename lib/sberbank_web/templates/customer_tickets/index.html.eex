@@ -1,0 +1,32 @@
+<section>
+  <h1>Customer <%= @customer.email %> tickets</h1>
+</section>
+
+<%= render "new_ticket_form.html", assigns %>
+
+<section>
+  <%= if @tickets == [] do %>
+    <div>No tickets for a while</div>
+  <% else %>
+    <table class="table table-striped">
+      <tr>
+        <th>ID</th>
+        <th>Topic</th>
+        <th>Competence</th>
+        <th>Ticket operators</th>
+      </tr>
+      <%= for ticket <- @tickets do %>
+        <tr>
+          <td><%= ticket.id %></td>
+          <td><%= ticket.topic %></td>
+          <td><%= make_competence_name(ticket.competence) %></td>
+          <td><%= make_operators_list(ticket) %></td>
+        </tr>
+      <% end %>
+    </table>
+  <% end %>
+</section>
+
+<section>
+  <%= link "Back", to: Routes.customer_path(@conn, :show, @customer), class: "btn btn-primary" %>
+</section>

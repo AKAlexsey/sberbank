@@ -7,7 +7,16 @@
     <%= @customer.email %>
   </li>
 
+  <li>
+    <%= link "Show customer tickets", to: Routes.customer_customer_tickets_path(@conn, :index, @customer), class: "btn btn-success" %>
+  </li>
+
 </ul>
 
-<span><%= link "Edit", to: Routes.customer_path(@conn, :edit, @customer) %></span>
-<span><%= link "Back", to: Routes.customer_path(@conn, :index) %></span>
+<div>
+  <span><%= link "Edit", to: Routes.customer_path(@conn, :edit, @customer), class: "btn btn-primary" %></span>
+</div>
+
+<div>
+  <span><%= link "Back", to: Routes.customer_path(@conn, :index), class: "btn btn-warning" %> %></span>
+</div>
