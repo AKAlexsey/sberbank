@@ -3,6 +3,8 @@ defmodule SberbankWeb.OperatorTicketsLive do
 
   alias Sberbank.Staff
 
+  alias Sberbank.Pipeline.OperatorClient
+
   #  def render(%{socket: socket} = assigns) do
   #    ~L"""
   #    <div>Live view works</div>
@@ -85,6 +87,7 @@ defmodule SberbankWeb.OperatorTicketsLive do
 
   def mount(%{"employer_id" => employer_id}, session, socket) do
     operator = Staff.get_employer!(employer_id, [:competencies])
+
     competences = operator.competencies
 
     assigned_socket = socket

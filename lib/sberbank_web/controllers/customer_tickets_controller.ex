@@ -3,6 +3,7 @@ defmodule SberbankWeb.CustomerTicketsController do
 
   alias Sberbank.{Customers, Staff}
   alias Sberbank.Customers.Ticket
+  alias Sberbank.Pipeline.RabbitClient
 
   def index(conn, %{"customer_id" => customer_id}) do
     %{customer: customer, tickets: tickets, competences: competences} =
@@ -20,7 +21,9 @@ defmodule SberbankWeb.CustomerTicketsController do
 
   def create(conn, %{"customer_id" => customer_id, "ticket" => ticket_params}) do
     case Customers.create_ticket(ticket_params) do
-      {:ok, _ticket} ->
+      {:ok, ticket} ->
+        RabbitClient.push_ticket(ticket)
+
         conn
         |> put_flash(:info, "Ticket created successfully")
         |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
@@ -37,6 +40,16 @@ defmodule SberbankWeb.CustomerTicketsController do
         )
     end
   end
+
+  def delete(conn, %{"customer_id" => customer_id, "id" => ticket_id}) do
+    ticket_id
+    |> Customers.get_ticket!()
+    |> Customers.delete_ticket()
+
+    conn
+    |> put_flash(:info, "Ticket deleted successfully")
+    |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
+    end
 
   defp preload_necessary_data(customer_id) do
     customer =

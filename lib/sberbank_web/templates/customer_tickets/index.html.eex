@@ -14,6 +14,7 @@
         <th>Topic</th>
         <th>Competence</th>
         <th>Ticket operators</th>
+        <th>Delete</th>
       </tr>
       <%= for ticket <- @tickets do %>
         <tr>
@@ -21,6 +22,9 @@
           <td><%= ticket.topic %></td>
           <td><%= make_competence_name(ticket.competence) %></td>
           <td><%= make_operators_list(ticket) %></td>
+          <td>
+            <%= link "Delete", to: Routes.customer_customer_tickets_path(@conn, :delete, @customer, ticket), class: "btn btn-danger", method: :delete %>
+          </td>
         </tr>
       <% end %>
     </table>

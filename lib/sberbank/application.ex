@@ -14,9 +14,10 @@ defmodule Sberbank.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: Sberbank.PubSub},
       # Start the Endpoint (http/https)
-      SberbankWeb.Endpoint
+      SberbankWeb.Endpoint,
       # Start a worker by calling: Sberbank.Worker.start_link(arg)
       # {Sberbank.Worker, arg}
+      {DynamicSupervisor, name: Sberbank.Pipeline.RabbitClient, strategy: :one_for_one}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
