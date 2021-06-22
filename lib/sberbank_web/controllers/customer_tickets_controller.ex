@@ -49,7 +49,7 @@ defmodule SberbankWeb.CustomerTicketsController do
     conn
     |> put_flash(:info, "Ticket deleted successfully")
     |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
-    end
+  end
 
   defp preload_necessary_data(customer_id) do
     customer =

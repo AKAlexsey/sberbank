@@ -17,7 +17,9 @@ defmodule Sberbank.Application do
       SberbankWeb.Endpoint,
       # Start a worker by calling: Sberbank.Worker.start_link(arg)
       # {Sberbank.Worker, arg}
-      {DynamicSupervisor, name: Sberbank.Pipeline.RabbitClient, strategy: :one_for_one}
+      {DynamicSupervisor,
+       name: Sberbank.Pipeline.OperatorDynamicSupervisor, strategy: :one_for_one},
+      Sberbank.Pipeline.RabbitClient
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

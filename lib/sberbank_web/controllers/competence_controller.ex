@@ -1,6 +1,7 @@
 defmodule SberbankWeb.CompetenceController do
   use SberbankWeb, :controller
 
+  alias Sberbank.Pipeline.{RabbitClient, Toolkit}
   alias Sberbank.Staff
   alias Sberbank.Staff.Competence
 
@@ -17,6 +18,8 @@ defmodule SberbankWeb.CompetenceController do
   def create(conn, %{"competence" => competence_params}) do
     case Staff.create_competence(competence_params) do
       {:ok, competence} ->
+        Toolkit.declare_competence_exchanges()
+
         conn
         |> put_flash(:info, "Competence created successfully.")
         |> redirect(to: Routes.competence_path(conn, :show, competence))
@@ -42,6 +45,8 @@ defmodule SberbankWeb.CompetenceController do
 
     case Staff.update_competence(competence, competence_params) do
       {:ok, competence} ->
+        Toolkit.declare_competence_exchanges()
+
         conn
         |> put_flash(:info, "Competence updated successfully.")
         |> redirect(to: Routes.competence_path(conn, :show, competence))
@@ -53,6 +58,7 @@ defmodule SberbankWeb.CompetenceController do
 
   def delete(conn, %{"id" => id}) do
     competence = Staff.get_competence!(id)
+    RabbitClient.delete_competence_exchange(competence)
     {:ok, _competence} = Staff.delete_competence(competence)
 
     conn

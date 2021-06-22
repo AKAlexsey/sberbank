@@ -15,19 +15,28 @@ defmodule Sberbank.Pipeline.OperatorClient do
     GenServer.cast(__MODULE__, {:push_ticket, ticket})
   end
 
+  def child_spec(%{operator: %Employer{} = operator} = params) do
+    server_name = make_server_name(operator)
+
+    %{
+      id: server_name,
+      start: {__MODULE__, :start_link, [params]}
+    }
+  end
+
   # Users API
   def start_link(%{operator: %Employer{} = operator} = params) do
     server_name = make_server_name(operator)
     GenServer.start_link(__MODULE__, params, name: server_name)
   end
 
-  defp make_server_name(%Employer{id: id})   do
+  defp make_server_name(%Employer{id: id}) do
     "#{__MODULE__}_#{id}"
     |> String.to_atom()
   end
 
   def init(%{operator: operator}) do
     RabbitClient.subscribe_operator(operator)
-    {:ok, %{operator: operator}}
+    {:ok, %{operator: operator, active: false, tickets: []}}
   end
 end

@@ -23,5 +23,7 @@ defmodule Sberbank.Staff.EmployerCompetence do
     |> cast_assoc(:competence, with: &Sberbank.Staff.Competence.changeset/2)
     |> cast_assoc(:employer, with: &Sberbank.Staff.Employer.changeset/2)
     |> validate_required(@required_fields)
+    |> foreign_key_constraint(:competence_id, name: :employer_competencies_competence_id_fkey)
+    |> foreign_key_constraint(:employer_id, name: :employer_competencies_employer_id_fkey)
   end
 end

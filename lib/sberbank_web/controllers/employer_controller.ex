@@ -5,7 +5,7 @@ defmodule SberbankWeb.EmployerController do
   alias Sberbank.Staff.Employer
 
   def index(conn, _params) do
-    employers = Staff.list_employers()
+    employers = Staff.list_employers([:competencies])
     render(conn, "index.html", employers: employers)
   end
 

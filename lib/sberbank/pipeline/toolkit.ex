@@ -5,11 +5,12 @@ defmodule Sberbank.Pipeline.Toolkit do
 
   alias Sberbank.Customers
   alias Sberbank.Customers.Ticket
+  alias Sberbank.Pipeline.RabbitClient
   alias Sberbank.Staff
   alias Sberbank.Staff.{Competence, Employer}
 
   # Users API
-  @spec put_customer_ticket(map, Ticket.t) :: :ok | {:error, binary}
+  @spec put_customer_ticket(map, Ticket.t()) :: :ok | {:error, binary}
   def put_customer_ticket(channel, %Ticket{id: id, topic: topic}) do
     ticket = Customers.get_ticket!(id, [:competence, :customer])
     %{competence: competence} = ticket
@@ -20,7 +21,7 @@ defmodule Sberbank.Pipeline.Toolkit do
     AMQP.Basic.publish(channel, exchange_name, routing_key, payload)
   end
 
-  @spec subscribe_operator_to_exchanges(map, Employer.t) :: :ok | {:error, binary}
+  @spec subscribe_operator_to_exchanges(map, Employer.t()) :: :ok | {:error, binary}
   def subscribe_operator_to_exchanges(channel, %Employer{id: id} = employer) do
     %{competencies: competencies} = employer = Staff.get_employer!(id, [:competencies])
 
@@ -29,16 +30,21 @@ defmodule Sberbank.Pipeline.Toolkit do
     {:ok, queue_data} = AMQP.Queue.declare(channel, queue_name, durable: false)
     %{queue: operator_queue} = queue_data
 
+    Staff.list_competencies()
+    |> Enum.map(fn competence ->
+      exchange_name = make_exchange_name(competence)
+      routing_key = get_routing_key(competence)
+
+      AMQP.Queue.unbind(channel, queue_name, exchange_name, routing_key: routing_key)
+    end)
+
     competencies
-    |> Enum.map(fn %{} = competence ->
+    |> Enum.each(fn %{} = competence ->
       exchange_name = make_exchange_name(competence)
       routing_key = get_routing_key(competence)
 
       AMQP.Queue.bind(channel, queue_name, exchange_name, routing_key: routing_key)
     end)
-    |> (fn res ->
-        IO.puts("!!! subscribe operator res: #{inspect(res, pretty: true)}\n!!! queue_data #{inspect(queue_data, pretty: true)}")
-        end).()
   end
 
   defp get_operator_queue_name(%Employer{id: id, name: name}) do
@@ -50,7 +56,7 @@ defmodule Sberbank.Pipeline.Toolkit do
   end
 
   # Rabbit interaction API
-  @spec open_connection :: {:ok, %{channel: AMQP.Channel.t, connection: AMQP.Connection.t}}
+  @spec open_connection :: {:ok, %{channel: AMQP.Channel.t(), connection: AMQP.Connection.t()}}
   def open_connection do
     {:ok, connection} = AMQP.Connection.open()
     {:ok, channel} = AMQP.Channel.open(connection)
@@ -58,7 +64,7 @@ defmodule Sberbank.Pipeline.Toolkit do
     {:ok, %{connection: connection, channel: channel}}
   end
 
-  @spec declare_exchange(map, Competence.t, list) :: {:ok, map} | {:error, atom}
+  @spec declare_exchange(map, Competence.t(), list) :: {:ok, map} | {:error, atom}
   def declare_exchange(rabbit_channel, %Competence{} = competence, opts \\ []) do
     exchange_name = make_exchange_name(competence)
 
@@ -67,7 +73,22 @@ defmodule Sberbank.Pipeline.Toolkit do
     AMQP.Exchange.topic(rabbit_channel, exchange_name, Keyword.merge(default_opts, opts))
   end
 
+  @spec delete_exchange(map, Competence.t()) :: {:ok, map} | {:error, atom}
+  def delete_exchange(rabbit_channel, %Competence{} = competence) do
+    exchange_name = make_exchange_name(competence)
+
+    AMQP.Exchange.delete(rabbit_channel, exchange_name, nowait: true)
+  end
+
   defp make_exchange_name(%Competence{letter: letter, name: name}) do
     String.downcase("exchange_#{name}_letter_#{letter}")
+  end
+
+  @spec declare_competence_exchanges :: :ok
+  def declare_competence_exchanges do
+    Staff.list_competencies()
+    |> Enum.each(fn competence ->
+      RabbitClient.declare_competence_exchanges(competence)
+    end)
   end
 end

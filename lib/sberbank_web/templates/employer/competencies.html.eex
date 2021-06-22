@@ -1,0 +1,5 @@
+<ul>
+  <%= for competence <- @competencies do%>
+  <li><%= "#{competence.id} - #{competence.name} - #{competence.letter}" %></li>
+  <% end %>
+</ul>

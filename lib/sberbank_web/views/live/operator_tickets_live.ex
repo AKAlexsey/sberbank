@@ -3,7 +3,7 @@ defmodule SberbankWeb.OperatorTicketsLive do
 
   alias Sberbank.Staff
 
-  alias Sberbank.Pipeline.OperatorClient
+  alias Sberbank.Pipeline.{OperatorDynamicSupervisor, RabbitClient}
 
   #  def render(%{socket: socket} = assigns) do
   #    ~L"""
@@ -88,92 +88,103 @@ defmodule SberbankWeb.OperatorTicketsLive do
   def mount(%{"employer_id" => employer_id}, session, socket) do
     operator = Staff.get_employer!(employer_id, [:competencies])
 
+    OperatorDynamicSupervisor.start_for_operator(operator)
+    |> case do
+      {:error, {:already_started, _}} ->
+        RabbitClient.subscribe_operator(operator)
+
+      _ ->
+        nil
+    end
+
     competences = operator.competencies
 
-    assigned_socket = socket
-    |> assign(:operator, Map.from_struct(operator))
-    |> assign(:competences, Enum.map(operator.competencies, &Map.from_struct/1))
-    |> assign_socket_data()
+    assigned_socket =
+      socket
+      |> assign(:operator, Map.from_struct(operator))
+      |> assign(:competences, Enum.map(operator.competencies, &Map.from_struct/1))
+      |> assign_socket_data()
 
     {:ok, assigned_socket}
   end
 
-#  def handle_info(:render, socket) do
-#    schedule_interval_rendering()
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  defp schedule_interval_rendering do
-#    Process.send_after(self(), :render, @refresh_interval)
-#  end
-#
-#  def handle_event("start", _value, socket) do
-#    StateManagementApi.start(@default_experiment_id)
-#    StageManagementApi.start_requesting(@default_experiment_id)
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  def handle_event("stop", _value, socket) do
-#    StateManagementApi.stop(@default_experiment_id)
-#    StageManagementApi.stop_requesting(@default_experiment_id)
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  def handle_event("reset", _value, socket) do
-#    StateManagementApi.reset(@default_experiment_id)
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  def handle_event("add_producer", _value, socket) do
-#    StageManagementApi.add_producer(@default_experiment_id)
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  def handle_event("terminate_producer", _value, socket) do
-#    StageManagementApi.terminate_producer(@default_experiment_id)
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  def handle_event("add_consumer", _value, socket) do
-#    %{producers: producers} = StateManagementApi.get_state(@default_experiment_id)
-#    StageManagementApi.add_consumer(@default_experiment_id, producers)
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  def handle_event("terminate_consumer", _value, socket) do
-#    StageManagementApi.terminate_consumer(@default_experiment_id)
-#    {:noreply, set_socket_value(socket)}
-#  end
-#
-#  def handle_event(_any_event, _any_value, socket) do
-#    {:noreply, socket}
-#  end
-#
-#  # experiment explicitly pass to function. It's identify experiment number. by default 1. Same as in supervisor.
+  #  def handle_info(:render, socket) do
+  #    schedule_interval_rendering()
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  defp schedule_interval_rendering do
+  #    Process.send_after(self(), :render, @refresh_interval)
+  #  end
+  #
+  #  def handle_event("start", _value, socket) do
+  #    StateManagementApi.start(@default_experiment_id)
+  #    StageManagementApi.start_requesting(@default_experiment_id)
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  def handle_event("stop", _value, socket) do
+  #    StateManagementApi.stop(@default_experiment_id)
+  #    StageManagementApi.stop_requesting(@default_experiment_id)
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  def handle_event("reset", _value, socket) do
+  #    StateManagementApi.reset(@default_experiment_id)
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  def handle_event("add_producer", _value, socket) do
+  #    StageManagementApi.add_producer(@default_experiment_id)
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  def handle_event("terminate_producer", _value, socket) do
+  #    StageManagementApi.terminate_producer(@default_experiment_id)
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  def handle_event("add_consumer", _value, socket) do
+  #    %{producers: producers} = StateManagementApi.get_state(@default_experiment_id)
+  #    StageManagementApi.add_consumer(@default_experiment_id, producers)
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  def handle_event("terminate_consumer", _value, socket) do
+  #    StageManagementApi.terminate_consumer(@default_experiment_id)
+  #    {:noreply, set_socket_value(socket)}
+  #  end
+  #
+  #  def handle_event(_any_event, _any_value, socket) do
+  #    {:noreply, socket}
+  #  end
+  #
+  #  # experiment explicitly pass to function. It's identify experiment number. by default 1. Same as in supervisor.
   defp assign_socket_data(%{assigns: %{operator: operator}} = socket) do
     socket
     |> assign(:current_tickets, [%{id: 1, topic: "Please close my Enterprener bank account"}])
   end
-#
-#  defp set_status_label(is_running), do: if(is_running, do: "RUNNING", else: "NOT_RUNNING")
-#
-#  defp calculate_duration(_now, nil), do: 0
-#  defp calculate_duration(now, start_time), do: NaiveDateTime.diff(now, start_time)
-#
-#  defp duration_label(duration), do: "#{duration} seconds"
-#
-#  defp speed_label(processed, duration) do
-#    if(duration == 0, do: 0, else: Float.round(processed / duration, 2))
-#    |> (fn speed -> "#{speed} iterations per second" end).()
-#  end
-#
-#  def get_name(pids, stage_module) do
-#    name_function =
-#      case stage_module do
-#        :producer -> &Producer.name/1
-#        :consumer -> &Consumer.name/1
-#      end
-#
-#    Enum.map(pids, fn pid -> name_function.(pid) end)
-#  end
+
+  #
+  #  defp set_status_label(is_running), do: if(is_running, do: "RUNNING", else: "NOT_RUNNING")
+  #
+  #  defp calculate_duration(_now, nil), do: 0
+  #  defp calculate_duration(now, start_time), do: NaiveDateTime.diff(now, start_time)
+  #
+  #  defp duration_label(duration), do: "#{duration} seconds"
+  #
+  #  defp speed_label(processed, duration) do
+  #    if(duration == 0, do: 0, else: Float.round(processed / duration, 2))
+  #    |> (fn speed -> "#{speed} iterations per second" end).()
+  #  end
+  #
+  #  def get_name(pids, stage_module) do
+  #    name_function =
+  #      case stage_module do
+  #        :producer -> &Producer.name/1
+  #        :consumer -> &Consumer.name/1
+  #      end
+  #
+  #    Enum.map(pids, fn pid -> name_function.(pid) end)
+  #  end
 end
