@@ -91,4 +91,28 @@ defmodule Sberbank.Pipeline.Toolkit do
       RabbitClient.declare_competence_exchanges(competence)
     end)
   end
+
+  @spec subscribe_to_operator_queue(map, Competence.t(), pid()) :: {:ok, map} | {:ok, :no_ticket} | {:error, binary}
+  def subscribe_to_operator_queue(rabbit_channel, %Employer{} = operator, process_pid) do
+    queue_name = get_operator_queue_name(operator)
+    AMQP.Basic.consume(rabbit_channel, queue_name, process_pid) # play with acknowledgement
+  end
+
+  @spec fetch_ticket_for_operator(map, Competence.t()) :: {:ok, map} | {:ok, :no_ticket} | {:error, binary}
+  def fetch_ticket_for_operator(rabbit_channel, %Employer{} = operator) do
+    queue_name = get_operator_queue_name(operator)
+
+    with {:basic_deliver, json_ticket_data} <- AMQP.Basic.consume(rabbit_channel, queue_name),
+         {:ok, %{"id" => ticket_id}} <- Jason.decode(json_ticket_data),
+         {:ok, ticket} <- Customers.get_ticket(ticket_id) do
+      {:ok, ticket}
+    else
+      {:error, %Jason.DecodeError{} = error} ->
+        {:error, Jason.DecodeError.message(error)}
+      {:basic_consume_ok, _} ->
+        {:ok, :no_ticket}
+      unexpected_error ->
+        {:error, inspect(unexpected_error, pretty: true)}
+    end
+  end
 end

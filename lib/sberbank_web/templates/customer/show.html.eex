@@ -13,10 +13,10 @@
 
 </ul>
 
-<div>
+<section class="mb-2">
   <span><%= link "Edit", to: Routes.customer_path(@conn, :edit, @customer), class: "btn btn-primary" %></span>
-</div>
+</section>
 
-<div>
-  <span><%= link "Back", to: Routes.customer_path(@conn, :index), class: "btn btn-warning" %> %></span>
-</div>
+<section>
+  <span><%= link "Back", to: Routes.customer_path(@conn, :index), class: "btn btn-warning" %></span>
+</section>

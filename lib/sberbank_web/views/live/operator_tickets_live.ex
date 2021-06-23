@@ -3,7 +3,9 @@ defmodule SberbankWeb.OperatorTicketsLive do
 
   alias Sberbank.Staff
 
-  alias Sberbank.Pipeline.{OperatorDynamicSupervisor, RabbitClient}
+  alias Sberbank.Pipeline.{OperatorClient, OperatorDynamicSupervisor, RabbitClient}
+
+  @refresh_interval 500
 
   #  def render(%{socket: socket} = assigns) do
   #    ~L"""
@@ -91,7 +93,7 @@ defmodule SberbankWeb.OperatorTicketsLive do
     OperatorDynamicSupervisor.start_for_operator(operator)
     |> case do
       {:error, {:already_started, _}} ->
-        RabbitClient.subscribe_operator(operator)
+        RabbitClient.subscribe_operator_to_exchanges(operator)
 
       _ ->
         nil
@@ -101,21 +103,23 @@ defmodule SberbankWeb.OperatorTicketsLive do
 
     assigned_socket =
       socket
-      |> assign(:operator, Map.from_struct(operator))
+      |> assign(:operator, operator)
       |> assign(:competences, Enum.map(operator.competencies, &Map.from_struct/1))
       |> assign_socket_data()
+
+    schedule_interval_rendering()
 
     {:ok, assigned_socket}
   end
 
-  #  def handle_info(:render, socket) do
-  #    schedule_interval_rendering()
-  #    {:noreply, set_socket_value(socket)}
-  #  end
-  #
-  #  defp schedule_interval_rendering do
-  #    Process.send_after(self(), :render, @refresh_interval)
-  #  end
+  def handle_info(:render, socket) do
+    schedule_interval_rendering()
+    {:noreply, assign_socket_data(socket)}
+  end
+
+  defp schedule_interval_rendering do
+    Process.send_after(self(), :render, @refresh_interval)
+  end
   #
   #  def handle_event("start", _value, socket) do
   #    StateManagementApi.start(@default_experiment_id)
@@ -161,8 +165,11 @@ defmodule SberbankWeb.OperatorTicketsLive do
   #
   #  # experiment explicitly pass to function. It's identify experiment number. by default 1. Same as in supervisor.
   defp assign_socket_data(%{assigns: %{operator: operator}} = socket) do
+    tickets = OperatorClient.get_active_tickets(operator)
+    current_tickets = Enum.map(tickets, fn {ticket, _} -> ticket end)
+
     socket
-    |> assign(:current_tickets, [%{id: 1, topic: "Please close my Enterprener bank account"}])
+    |> assign(:current_tickets, current_tickets)
   end
 
   #

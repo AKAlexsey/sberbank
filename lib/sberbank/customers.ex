@@ -141,6 +141,12 @@ defmodule Sberbank.Customers do
     |> Repo.preload(preload)
   end
 
+  def get_ticket(id, preload \\ []) do
+    Ticket
+    |> Repo.get(id)
+    |> Repo.preload(preload)
+  end
+
   @doc """
   Creates a ticket.
 

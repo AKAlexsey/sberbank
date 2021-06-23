@@ -15,8 +15,12 @@ defmodule Sberbank.Pipeline.RabbitClient do
     GenServer.cast(__MODULE__, {:push_ticket, ticket})
   end
 
-  def subscribe_operator(%Employer{} = operator) do
-    GenServer.cast(__MODULE__, {:susbscribe_operator, operator})
+  def subscribe_operator_to_exchanges(%Employer{} = operator) do
+    GenServer.cast(__MODULE__, {:subscribe_operator_to_exchanges, operator})
+  end
+
+  def subscribe_to_operator_queue(%Employer{} = operator, process_pid) do
+    GenServer.cast(__MODULE__, {:subscribe_to_operator_queue, operator, process_pid})
   end
 
   def declare_competence_exchanges(competence) do
@@ -25,6 +29,10 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
   def delete_competence_exchange(competence) do
     GenServer.cast(__MODULE__, {:delete_competence_exchange, competence})
+  end
+
+  def fetch_ticket_for_operator(operator) do
+    GenServer.call(__MODULE__, {:fetch_ticket_for_operator, operator})
   end
 
   # Users API
@@ -56,13 +64,26 @@ defmodule Sberbank.Pipeline.RabbitClient do
   end
 
   def handle_cast(
-        {:susbscribe_operator, %Employer{id: id, name: name} = operator},
+        {:subscribe_operator_to_exchanges, %Employer{id: id, name: name} = operator},
         %{channel: channel} = state
       ) do
     result = Toolkit.subscribe_operator_to_exchanges(channel, operator)
 
     Logger.info(fn ->
       "#{__MODULE__} Subscribed operator #{id} #{name}. Result: #{inspect(result, pretty: true)}"
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:subscribe_to_operator_queue, %Employer{id: id, name: name} = operator, process_pid},
+        %{channel: channel} = state
+      ) do
+    result = Toolkit.subscribe_to_operator_queue(channel, operator, process_pid)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Subscription operator #{id} #{name} to queue result: #{inspect(result, pretty: true)}"
     end)
 
     {:noreply, state}
@@ -93,6 +114,38 @@ defmodule Sberbank.Pipeline.RabbitClient do
       }"
     end)
 
+    {:noreply, state}
+  end
+
+  def handle_call(
+        {:fetch_ticket_for_operator, %Employer{id: id, name: name} = operator},
+        _from,
+        %{channel: channel} = state
+      ) do
+    channel
+    |> Toolkit.fetch_ticket_for_operator(operator)
+    |> case do
+         {:ok, %Ticket{id: ticket_id, topic: topic} = ticket} ->
+           Logger.info(fn ->
+             "#{__MODULE__} Fetched Ticket with id: #{ticket_id} and topic #{topic} for Operator: #{id} #{name}."
+           end)
+
+           {:reply, {:ok, ticket}, state}
+         {:ok, :no_ticket} ->
+           {:reply, {:ok, :no_ticket}, state}
+         {:error, reason} ->
+           Logger.error(fn ->
+            "#{__MODULE__} Error fetching data for for Operator: #{id} #{name}: #{reason}"
+           end)
+           {:reply, {:error, reason}, state}
+       end
+  end
+
+  def handle_info({:basic_deliver, _, _}, state) do
+    {:noreply, state}
+  end
+
+  def handle_info({:basic_consume_ok, _}, state) do
     {:noreply, state}
   end
 end
