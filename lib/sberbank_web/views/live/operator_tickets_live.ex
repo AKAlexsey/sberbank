@@ -120,6 +120,7 @@ defmodule SberbankWeb.OperatorTicketsLive do
   defp schedule_interval_rendering do
     Process.send_after(self(), :render, @refresh_interval)
   end
+
   #
   #  def handle_event("start", _value, socket) do
   #    StateManagementApi.start(@default_experiment_id)

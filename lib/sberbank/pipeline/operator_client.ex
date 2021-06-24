@@ -20,7 +20,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
     GenServer.cast(__MODULE__, {:push_ticket, ticket})
   end
 
-  @spec get_active_tickets(Employer.t) :: list(map)
+  @spec get_active_tickets(Employer.t()) :: list(map)
   def get_active_tickets(%{} = operator) do
     server_name = make_server_name(operator)
 
@@ -54,41 +54,66 @@ defmodule Sberbank.Pipeline.OperatorClient do
     {:ok, %{operator: operator, active: true, active_tickets: [], tickets_queue: :queue.new()}}
   end
 
-  def handle_info({:basic_deliver, encoded_data, metadata}, %{tickets_queue: tickets_queue} = state) do
+  def handle_info(
+        {:basic_deliver, encoded_data, metadata},
+        %{tickets_queue: tickets_queue} = state
+      ) do
     Jason.decode(encoded_data)
     |> case do
       {:ok, ticket_data} ->
         new_tickets_queue = :queue.in({ticket_data, metadata}, tickets_queue)
         {:noreply, %{state | tickets_queue: new_tickets_queue}}
+
       {:error, reason} ->
         Logger.error(fn -> "Error parsing data for #{inspect(self())}: #{reason}" end)
         {:noreply, state}
-       end
+    end
   end
 
   def handle_info({:basic_consume_ok, _}, state) do
     {:noreply, state}
   end
 
-  def handle_info(:check_new_tickets, %{active: true, active_tickets: tickets, operator: operator, tickets_queue: tickets_queue} = state) when length(tickets) < @max_tickets do
-    IO.puts("!!! check_new_tickets")
-    with {{:value, {%{"id" => ticket_id}, ticket_meta}}, new_tickets_queue} <- :queue.out(tickets_queue),
-         {:ok, {ticket, ticket_operator}} <- OperatorTicketContext.add_operator_to_ticket(ticket_id, operator) do
+  def handle_info(
+        :check_new_tickets,
+        %{active: true, active_tickets: tickets, operator: operator, tickets_queue: tickets_queue} =
+          state
+      )
+      when length(tickets) < @max_tickets do
+    with {{:value, {%{"id" => ticket_id}, ticket_meta}}, new_tickets_queue} <-
+           :queue.out(tickets_queue),
+         {:ok, {ticket, ticket_operator}} <-
+           OperatorTicketContext.add_operator_to_ticket(ticket_id, operator) do
       check_new_tickets()
-      {:noreply, %{state | tickets: [{ticket, ticket_operator}] ++ tickets, tickets_queue: new_tickets_queue}}
+
+      {:noreply,
+       %{
+         state
+         | active_tickets: [{ticket, ticket_operator}] ++ tickets,
+           tickets_queue: new_tickets_queue
+       }}
     else
-      {:error, reason} when is_binary(reason)->
+      {:error, reason} when is_binary(reason) ->
         check_new_tickets()
         Logger.info(fn -> "#{__MODULE__} Error linking operator to ticket: #{reason}" end)
         {:noreply, state}
+
       {:empty, _} ->
         check_new_tickets()
         {:noreply, state}
     end
   end
 
+  def handle_info(:check_new_tickets, state) do
+    check_new_tickets()
+    {:noreply, state}
+  end
+
   def handle_info(unexpected_handle_info, state) do
-    Logger.error(fn -> "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}" end)
+    Logger.error(fn ->
+      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}"
+    end)
+
     {:noreply, state}
   end
 

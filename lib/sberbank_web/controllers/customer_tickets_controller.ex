@@ -52,8 +52,7 @@ defmodule SberbankWeb.CustomerTicketsController do
   end
 
   defp preload_necessary_data(customer_id) do
-    customer =
-      Customers.get_customer!(customer_id, tickets: [:competence, [ticket_operators: :operators]])
+    customer = Customers.get_customer!(customer_id, tickets: [:competence, :operators])
 
     %{tickets: tickets} = customer
     competences = Staff.list_competencies()

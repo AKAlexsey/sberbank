@@ -83,7 +83,9 @@ defmodule Sberbank.Pipeline.RabbitClient do
     result = Toolkit.subscribe_to_operator_queue(channel, operator, process_pid)
 
     Logger.info(fn ->
-      "#{__MODULE__} Subscription operator #{id} #{name} to queue result: #{inspect(result, pretty: true)}"
+      "#{__MODULE__} Subscription operator #{id} #{name} to queue result: #{
+        inspect(result, pretty: true)
+      }"
     end)
 
     {:noreply, state}
@@ -125,20 +127,25 @@ defmodule Sberbank.Pipeline.RabbitClient do
     channel
     |> Toolkit.fetch_ticket_for_operator(operator)
     |> case do
-         {:ok, %Ticket{id: ticket_id, topic: topic} = ticket} ->
-           Logger.info(fn ->
-             "#{__MODULE__} Fetched Ticket with id: #{ticket_id} and topic #{topic} for Operator: #{id} #{name}."
-           end)
+      {:ok, %Ticket{id: ticket_id, topic: topic} = ticket} ->
+        Logger.info(fn ->
+          "#{__MODULE__} Fetched Ticket with id: #{ticket_id} and topic #{topic} for Operator: #{
+            id
+          } #{name}."
+        end)
 
-           {:reply, {:ok, ticket}, state}
-         {:ok, :no_ticket} ->
-           {:reply, {:ok, :no_ticket}, state}
-         {:error, reason} ->
-           Logger.error(fn ->
-            "#{__MODULE__} Error fetching data for for Operator: #{id} #{name}: #{reason}"
-           end)
-           {:reply, {:error, reason}, state}
-       end
+        {:reply, {:ok, ticket}, state}
+
+      {:ok, :no_ticket} ->
+        {:reply, {:ok, :no_ticket}, state}
+
+      {:error, reason} ->
+        Logger.error(fn ->
+          "#{__MODULE__} Error fetching data for for Operator: #{id} #{name}: #{reason}"
+        end)
+
+        {:reply, {:error, reason}, state}
+    end
   end
 
   def handle_info({:basic_deliver, _, _}, state) do
