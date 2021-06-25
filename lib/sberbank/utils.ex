@@ -11,4 +11,13 @@ defmodule Sberbank.Utils do
       end)
     end)
   end
+
+  def safe_to_integer(value) when is_integer(value), do: value
+
+  def safe_to_integer(value) when is_binary(value) do
+    {int, _} = Integer.parse(value)
+    int
+  end
+
+  def safe_to_integer(value), do: value
 end

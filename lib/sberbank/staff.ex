@@ -43,6 +43,11 @@ defmodule Sberbank.Staff do
     |> Repo.preload(preload)
   end
 
+  def get_employer(id, preload \\ []) do
+    Employer
+    |> Repo.get(id)
+  end
+
   @doc """
   Creates a employer.
 

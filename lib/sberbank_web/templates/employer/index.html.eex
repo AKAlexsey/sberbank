@@ -18,7 +18,7 @@
         <%= render "competencies.html", competencies: employer.competencies %>
       </td>
       <td>
-        <span><%= link "Operator tickets", to: Routes.employer_live_path(@conn, SberbankWeb.OperatorTicketsLive, employer), class: "btn btn-success" %></span>
+        <span><%= link "Operator tickets", to: Routes.employer_live_path(@conn, SberbankWeb.OperatorTicketsLive, employer), class: "btn btn-warning" %></span>
         <span><%= link "Show", to: Routes.employer_path(@conn, :show, employer), class: "btn btn-primary" %></span>
         <span><%= link "Edit", to: Routes.employer_path(@conn, :edit, employer), class: "btn btn-success" %></span>
         <span><%= link "Delete", to: Routes.employer_path(@conn, :delete, employer), method: :delete, data: [confirm: "Are you sure?"], class: "btn btn-danger" %></span>

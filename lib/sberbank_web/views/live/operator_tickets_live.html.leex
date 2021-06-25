@@ -17,6 +17,14 @@
           <td>
             Here will be the chat
           </td>
+          <td>
+            <button
+                    phx-click="leave_ticket"
+                    phx-value-ticket-id="<%= ticket.id %>"
+                    class="btn btn-outline-danger">
+              Leave
+            </button>
+          </td>
         </li>
       <% end %>
     </ul>

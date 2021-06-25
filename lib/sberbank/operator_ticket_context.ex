@@ -56,4 +56,25 @@ defmodule Sberbank.OperatorTicketContext do
       {ticket, ticket_operator}
     end)
   end
+
+  @spec operator_leaves_ticket(Employer.t(), integer) :: :ok | {:error, binary}
+  def operator_leaves_ticket(%Employer{id: operator_id}, ticket_id) do
+    with ticket_operator when not is_nil(ticket_operator) <-
+           Repo.get_by(TicketOperator,
+             employer_id: operator_id,
+             ticket_id: ticket_id,
+             active: true
+           ),
+         {:ok, %TicketOperator{}} <-
+           Customers.update_ticket_operator(ticket_operator, %{active: false}) do
+      :ok
+    else
+      nil ->
+        {:error,
+         "Active OperatorTicket for employer_id: #{operator_id}, ticket_id: #{ticket_id} not found"}
+
+      unexpected_reason ->
+        {:error, inspect(unexpected_reason)}
+    end
+  end
 end

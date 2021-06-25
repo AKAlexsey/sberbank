@@ -15,9 +15,60 @@ defmodule Sberbank.Pipeline.OperatorClient do
   alias Sberbank.{OperatorTicketContext, Staff}
   alias Sberbank.Staff.Employer
   alias Sberbank.Pipeline.{RabbitClient, Toolkit}
+  alias Sberbank.Utils
 
-  def push_ticket(%Ticket{} = ticket) do
-    GenServer.cast(__MODULE__, {:push_ticket, ticket})
+  @spec deactivate_ticket(Employer | integer, integer | binary) :: list(map)
+  def deactivate_ticket(%Employer{} = operator, ticket_id) do
+    operator
+    |> make_server_name()
+    |> GenServer.call({:deactivate_ticket, ticket_id})
+  end
+
+  def deactivate_ticket(operator_id, ticket_id) do
+    Staff.get_employer(operator_id)
+    |> case do
+      nil ->
+        {:error, "Operator with ID: #{operator_id} not found"}
+
+      operator ->
+        deactivate_ticket(operator, ticket_id)
+    end
+  end
+
+  @spec leave_ticket(Employer | integer, integer | binary) :: list(map)
+  def leave_ticket(%Employer{} = operator, ticket_id) do
+    operator
+    |> make_server_name()
+    |> GenServer.call({:leave_ticket, ticket_id})
+  end
+
+  def leave_ticket(operator_id, ticket_id) do
+    Staff.get_employer(operator_id)
+    |> case do
+      nil ->
+        {:error, "Operator with ID: #{operator_id} not found"}
+
+      operator ->
+        leave_ticket(operator, ticket_id)
+    end
+  end
+
+  @spec(ticket_removed(Employer | integer, integer | binary) :: :ok, {:error, binary})
+  def ticket_removed(%Employer{} = operator, ticket_id) do
+    operator
+    |> make_server_name()
+    |> GenServer.cast({:ticket_removed, ticket_id})
+  end
+
+  def ticket_removed(operator_id, ticket_id) do
+    Staff.get_employer(operator_id)
+    |> case do
+      nil ->
+        {:error, "Operator with ID: #{operator_id} not found"}
+
+      operator ->
+        ticket_removed(operator, ticket_id)
+    end
   end
 
   @spec get_active_tickets(Employer.t()) :: list(map)
@@ -60,6 +111,51 @@ defmodule Sberbank.Pipeline.OperatorClient do
        active_tickets: active_tickets,
        tickets_queue: :queue.new()
      }}
+  end
+
+  def handle_cast(
+        {:deactivate_ticket, ticket_id},
+        %{
+          active_tickets: active_tickets
+        } = state
+      ) do
+    {:noreply, state}
+  end
+
+  def handle_call(
+        {:leave_ticket, ticket_id},
+        _from,
+        %{
+          operator: operator
+        } = state
+      ) do
+    result = OperatorTicketContext.operator_leaves_ticket(operator, ticket_id)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Leaving operator #{operator.name} form ticket #{ticket_id} result #{
+        inspect(result)
+      }"
+    end)
+
+    {:reply, :ok, remove_active_ticket(state, ticket_id)}
+  end
+
+  def handle_cast(
+        {:ticket_removed, ticket_id},
+        %{
+          active_tickets: active_tickets
+        } = state
+      ) do
+    {:noreply, state}
+  end
+
+  defp remove_active_ticket(%{active_tickets: active_tickets} = state, ticket_id) do
+    ticket_id = Utils.safe_to_integer(ticket_id)
+
+    new_active_tickets =
+      Enum.reject(active_tickets, fn {%Ticket{id: id}, _} -> id == ticket_id end)
+
+    %{state | active_tickets: new_active_tickets}
   end
 
   def handle_info(
