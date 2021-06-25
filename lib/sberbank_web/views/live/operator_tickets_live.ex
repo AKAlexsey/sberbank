@@ -121,7 +121,6 @@ defmodule SberbankWeb.OperatorTicketsLive do
     Process.send_after(self(), :render, @refresh_interval)
   end
 
-  #
   #  def handle_event("start", _value, socket) do
   #    StateManagementApi.start(@default_experiment_id)
   #    StageManagementApi.start_requesting(@default_experiment_id)
@@ -173,7 +172,6 @@ defmodule SberbankWeb.OperatorTicketsLive do
     |> assign(:current_tickets, current_tickets)
   end
 
-  #
   #  defp set_status_label(is_running), do: if(is_running, do: "RUNNING", else: "NOT_RUNNING")
   #
   #  defp calculate_duration(_now, nil), do: 0

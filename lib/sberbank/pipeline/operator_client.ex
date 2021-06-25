@@ -63,13 +63,13 @@ defmodule Sberbank.Pipeline.OperatorClient do
   end
 
   def handle_info(
-        {:basic_deliver, encoded_data, metadata},
+        {:basic_deliver, encoded_data, %{delivery_tag: delivery_tag}},
         %{tickets_queue: tickets_queue} = state
       ) do
     Jason.decode(encoded_data)
     |> case do
       {:ok, ticket_data} ->
-        new_tickets_queue = :queue.in({ticket_data, metadata}, tickets_queue)
+        new_tickets_queue = :queue.in({ticket_data, delivery_tag}, tickets_queue)
         {:noreply, %{state | tickets_queue: new_tickets_queue}}
 
       {:error, reason} ->
@@ -88,18 +88,21 @@ defmodule Sberbank.Pipeline.OperatorClient do
           state
       )
       when length(tickets) < @max_tickets do
-    with {{:value, {%{"id" => ticket_id}, ticket_meta}}, new_tickets_queue} <-
+    with {{:value, {%{"id" => ticket_id}, delivery_tag}}, new_tickets_queue} <-
            :queue.out(tickets_queue),
          {:ok, {ticket, ticket_operator}} <-
            OperatorTicketContext.add_operator_to_ticket(ticket_id, operator) do
       check_new_tickets()
 
-      {:noreply,
-       %{
-         state
-         | active_tickets: [{ticket, ticket_operator}] ++ tickets,
-           tickets_queue: new_tickets_queue
-       }}
+      new_state = %{
+        state
+        | active_tickets: [{ticket, ticket_operator}] ++ tickets,
+          tickets_queue: new_tickets_queue
+      }
+
+      RabbitClient.acknowledge_message(delivery_tag)
+
+      {:noreply, new_state}
     else
       {:error, reason} when is_binary(reason) ->
         check_new_tickets()

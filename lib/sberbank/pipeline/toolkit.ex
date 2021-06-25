@@ -100,6 +100,11 @@ defmodule Sberbank.Pipeline.Toolkit do
     AMQP.Basic.consume(rabbit_channel, queue_name, process_pid)
   end
 
+  @spec acknowledge_message(map, integer, list) :: :ok | {:error, reason :: :blocked | :closing}
+  def acknowledge_message(rabbit_channel, delivery_tag, opts \\ []) do
+    AMQP.Basic.ack(rabbit_channel, delivery_tag, opts)
+  end
+
   @spec fetch_ticket_for_operator(map, Competence.t()) ::
           {:ok, map} | {:ok, :no_ticket} | {:error, binary}
   def fetch_ticket_for_operator(rabbit_channel, %Employer{} = operator) do

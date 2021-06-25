@@ -31,6 +31,10 @@ defmodule Sberbank.Pipeline.RabbitClient do
     GenServer.cast(__MODULE__, {:delete_competence_exchange, competence})
   end
 
+  def acknowledge_message(delivery_tag) when is_integer(delivery_tag) do
+    GenServer.cast(__MODULE__, {:acknowledge_message, delivery_tag})
+  end
+
   def fetch_ticket_for_operator(operator) do
     GenServer.call(__MODULE__, {:fetch_ticket_for_operator, operator})
   end
@@ -114,6 +118,19 @@ defmodule Sberbank.Pipeline.RabbitClient do
       "#{__MODULE__} Termination exchange for #{id} #{name}. Result: #{
         inspect(result, pretty: true)
       }"
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:acknowledge_message, delivery_tag},
+        %{channel: channel} = state
+      ) do
+    result = Toolkit.acknowledge_message(channel, delivery_tag)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Acknowledgement result: #{inspect(result, pretty: true)}"
     end)
 
     {:noreply, state}
