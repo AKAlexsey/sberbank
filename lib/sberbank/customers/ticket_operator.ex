@@ -24,5 +24,9 @@ defmodule Sberbank.Customers.TicketOperator do
     ticket_operator
     |> cast(attrs, @cast_fields)
     |> validate_required(@required_fields)
+    |> unique_constraint([:ticket_id, :active],
+      name: :ticket_operators_ticket_id_active_index,
+      message: "Only one active OperatorTicket allowed for Ticket simultaneously"
+    )
   end
 end

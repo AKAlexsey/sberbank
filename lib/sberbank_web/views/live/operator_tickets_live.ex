@@ -1,5 +1,5 @@
 defmodule SberbankWeb.OperatorTicketsLive do
-  use Phoenix.LiveView
+  use SberbankWeb, :live_view
 
   alias Sberbank.Staff
 

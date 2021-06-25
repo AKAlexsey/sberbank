@@ -48,6 +48,26 @@ defmodule SberbankWeb do
     end
   end
 
+  def live_view do
+    quote do
+      use Phoenix.LiveView
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller,
+        only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
+
+      # Add helpers for live view
+      import Phoenix.LiveView.Helpers
+      alias SberbankWeb.Router.Helpers, as: Routes
+
+      # Add common functions for views
+      import SberbankWeb.CommonView
+
+      # Include shared imports and aliases for views
+      unquote(view_helpers())
+    end
+  end
+
   def router do
     quote do
       use Phoenix.Router

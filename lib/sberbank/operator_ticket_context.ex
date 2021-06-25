@@ -3,9 +3,13 @@ defmodule Sberbank.OperatorTicketContext do
   Contains functions that allows to add operators to ticket, change ticket operator.
   """
 
+  import Ecto.Query
+
   alias Sberbank.Customers
   alias Sberbank.Customers.{Ticket, TicketOperator}
+  alias Sberbank.Repo
   alias Sberbank.Staff.Employer
+  alias Sberbank.Utils
 
   @doc """
   Check if ticket already has TicketOperator with active = true for operator other than given.
@@ -25,11 +29,31 @@ defmodule Sberbank.OperatorTicketContext do
            }) do
       {:ok, {ticket, ticket_operator}}
     else
-      {:error, reason} ->
-        {:error, inspect(reason, pretty: true)}
+      {:error, error_changeset} ->
+        serialized_errors =
+          error_changeset
+          |> Utils.traverse_errors()
+          |> Enum.map(fn {key, errors} -> "#{key}: #{Enum.join(errors, " ")}" end)
+          |> Enum.join("\n")
+
+        {:error, serialized_errors}
 
       _ ->
         {:error, "No ticket with id: #{ticket_id}"}
     end
+  end
+
+  @spec get_operator_active_tickets(Employer.t()) ::
+          {:ok, list({Ticket.t(), TicketOperator.t()})} | {:error, binary}
+  def get_operator_active_tickets(%Employer{id: operator_id}) do
+    from(to in TicketOperator,
+      where: [employer_id: ^operator_id, active: true],
+      preload: [:ticket],
+      order_by: [:id]
+    )
+    |> Repo.all()
+    |> Enum.map(fn %TicketOperator{ticket: ticket} = ticket_operator ->
+      {ticket, ticket_operator}
+    end)
   end
 end

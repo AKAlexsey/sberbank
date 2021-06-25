@@ -130,15 +130,6 @@ defmodule Sberbank.CustomersTest do
     @update_attrs %{active: false}
     @invalid_attrs %{active: nil}
 
-    def ticket_operator_fixture(attrs \\ %{}) do
-      {:ok, ticket_operator} =
-        attrs
-        |> Enum.into(@valid_attrs)
-        |> Customers.create_ticket_operator()
-
-      ticket_operator
-    end
-
     test "list_ticket_operators/0 returns all ticket_operators" do
       ticket_operator = ticket_operator_fixture()
       assert Customers.list_ticket_operators() == [ticket_operator]

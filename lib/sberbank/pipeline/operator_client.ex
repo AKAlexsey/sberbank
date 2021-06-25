@@ -50,8 +50,16 @@ defmodule Sberbank.Pipeline.OperatorClient do
   def init(%{operator: operator}) do
     RabbitClient.subscribe_operator_to_exchanges(operator)
     RabbitClient.subscribe_to_operator_queue(operator, self())
+    active_tickets = OperatorTicketContext.get_operator_active_tickets(operator)
     check_new_tickets(2000)
-    {:ok, %{operator: operator, active: true, active_tickets: [], tickets_queue: :queue.new()}}
+
+    {:ok,
+     %{
+       operator: operator,
+       active: true,
+       active_tickets: active_tickets,
+       tickets_queue: :queue.new()
+     }}
   end
 
   def handle_info(
