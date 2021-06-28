@@ -7,12 +7,25 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
   use GenServer
 
+  alias Sberbank.Customers
   alias Sberbank.Customers.Ticket
   alias Sberbank.Staff.Employer
   alias Sberbank.Pipeline.Toolkit
 
   def push_ticket(%Ticket{} = ticket) do
     GenServer.cast(__MODULE__, {:push_ticket, ticket})
+  end
+
+  def push_ticket(ticket_id) when is_integer(ticket_id) or is_binary(ticket_id) do
+    ticket = Customers.get_ticket(ticket_id)
+    GenServer.cast(__MODULE__, {:push_ticket, ticket})
+  end
+
+  def push_ticket(unexpected_argument) do
+    {:error,
+     "Unexpected argument. Expected #{inspect(Ticket)}, integer or binary, given: #{
+       unexpected_argument
+     }"}
   end
 
   def subscribe_operator_to_exchanges(%Employer{} = operator) do

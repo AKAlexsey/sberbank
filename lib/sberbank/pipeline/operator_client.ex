@@ -10,6 +10,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
 
   @max_tickets 3
   @check_tickets_interval 500
+  @ticket_requeue_timeout 1000
 
   alias Sberbank.Customers.{Ticket, TicketOperator}
   alias Sberbank.{OperatorTicketContext, Staff}
@@ -131,6 +132,10 @@ defmodule Sberbank.Pipeline.OperatorClient do
       ) do
     result = OperatorTicketContext.operator_leaves_ticket(operator, ticket_id)
 
+    if result == :ok do
+      push_ticket_to_exchange(ticket_id)
+    end
+
     Logger.info(fn ->
       "#{__MODULE__} Leaving operator #{operator.name} form ticket #{ticket_id} result #{
         inspect(result)
@@ -203,9 +208,25 @@ defmodule Sberbank.Pipeline.OperatorClient do
       {:noreply, new_state}
     else
       {:error, reason} when is_binary(reason) ->
+        {{:value, {%{"id" => _ticket_id}, delivery_tag}}, new_tickets_queue} =
+          :queue.out(tickets_queue)
+
+        RabbitClient.acknowledge_message(delivery_tag)
+
         check_new_tickets()
         Logger.info(fn -> "#{__MODULE__} Error linking operator to ticket: #{reason}" end)
-        {:noreply, state}
+        {:noreply, %{state | tickets_queue: new_tickets_queue}}
+
+      {:error, :try_later} ->
+        {{:value, {%{"id" => ticket_id}, delivery_tag}}, new_tickets_queue} =
+          :queue.out(tickets_queue)
+
+        push_ticket_to_exchange(ticket_id)
+
+        RabbitClient.acknowledge_message(delivery_tag)
+
+        check_new_tickets()
+        {:noreply, %{state | tickets_queue: new_tickets_queue}}
 
       {:empty, _} ->
         check_new_tickets()
@@ -232,5 +253,18 @@ defmodule Sberbank.Pipeline.OperatorClient do
 
   defp check_new_tickets(check_interval \\ @check_tickets_interval) do
     Process.send_after(self(), :check_new_tickets, check_interval)
+  end
+
+  defp push_ticket_to_exchange(ticket_id) do
+    Task.start(fn ->
+      Process.sleep(@ticket_requeue_timeout)
+      push_ticket_result = RabbitClient.push_ticket(ticket_id)
+
+      Logger.info(fn ->
+        "#{__MODULE__} Pushing ticket with ID: #{ticket_id} to queue result: #{
+          inspect(push_ticket_result)
+        }"
+      end)
+    end)
   end
 end

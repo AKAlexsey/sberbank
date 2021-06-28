@@ -11,6 +11,8 @@ defmodule Sberbank.OperatorTicketContext do
   alias Sberbank.Staff.Employer
   alias Sberbank.Utils
 
+  @ticket_reroute_timeout_seconds 5
+
   @doc """
   Check if ticket already has TicketOperator with active = true for operator other than given.
   If yes - return {:error, "Ticket already has operator}
@@ -18,9 +20,10 @@ defmodule Sberbank.OperatorTicketContext do
   Perform all manipulations in Ecto transaction
   """
   @spec add_operator_to_ticket(binary, Employer.t()) ::
-          {:ok, {Ticket.t(), TicketOperator.t()}} | {:error, binary}
+          {:ok, {Ticket.t(), TicketOperator.t()}} | {:error, binary} | {:error, :try_later}
   def add_operator_to_ticket(ticket_id, %Employer{id: operator_id}) do
     with ticket when not is_nil(ticket) <- Customers.get_ticket(ticket_id, [:operators]),
+         :ok <- operator_did_not_left_ticket_recently?(ticket, operator_id),
          {:ok, ticket_operator} <-
            Customers.create_ticket_operator(%{
              ticket_id: ticket.id,
@@ -29,7 +32,7 @@ defmodule Sberbank.OperatorTicketContext do
            }) do
       {:ok, {ticket, ticket_operator}}
     else
-      {:error, error_changeset} ->
+      {:error, %Ecto.Changeset{} = error_changeset} ->
         serialized_errors =
           error_changeset
           |> Utils.traverse_errors()
@@ -38,8 +41,37 @@ defmodule Sberbank.OperatorTicketContext do
 
         {:error, serialized_errors}
 
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+
       _ ->
         {:error, "No ticket with id: #{ticket_id}"}
+    end
+  end
+
+  @spec operator_did_not_left_ticket_recently?(Ticket.t(), integer | binary) ::
+          :ok | {:error, :try_later}
+  defp operator_did_not_left_ticket_recently?(
+         %Ticket{id: ticket_id, topic: topic, ticket_operators: ticket_operators},
+         checked_operator_id
+       ) do
+    now = NaiveDateTime.utc_now()
+
+    ticket_operators
+    |> Enum.any?(fn %TicketOperator{
+                      employer_id: operator_id,
+                      active: active,
+                      updated_at: updated_at
+                    } ->
+      operator_id == checked_operator_id && active == false &&
+        NaiveDateTime.diff(now, updated_at) < @ticket_reroute_timeout_seconds
+    end)
+    |> case do
+      false ->
+        :ok
+
+      true ->
+        {:error, :try_later}
     end
   end
 
