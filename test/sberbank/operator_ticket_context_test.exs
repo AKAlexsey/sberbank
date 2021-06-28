@@ -282,4 +282,63 @@ defmodule Sberbank.OperatorTicketContextTest do
                OperatorTicketContext.get_ticket_with_active_operator(non_existing_ticket_id)
     end
   end
+
+  describe "#deactivate_ticket" do
+    setup do
+      customer = customer_fixture()
+      competence = competence_fixture()
+      operator = employer_fixture(%{name: "ExperiencedOperator"})
+      operator_2 = employer_fixture(%{name: "OtherOperator"})
+
+      ticket =
+        ticket_fixture(%{
+          customer_id: customer.id,
+          active: true,
+          topic: "Can't pay credit",
+          competence_id: competence.id
+        })
+
+      {
+        :ok,
+        operator: operator, operator_2: operator_2, ticket: ticket
+      }
+    end
+
+    test "Deactivate ticket if it doesn't have TicketOperators", %{ticket: ticket} do
+      assert {:ok, %Ticket{active: false}} = OperatorTicketContext.deactivate_ticket(ticket.id)
+    end
+
+    test "Deactivate ticket and TicketOperator records", %{
+      operator: operator,
+      operator_2: operator_2,
+      ticket: %{id: ticket_id}
+    } do
+      %{id: ticket_operator_id_1} =
+        ticket_operator_fixture(%{
+          ticket_id: ticket_id,
+          employer_id: operator_2.id,
+          active: false
+        })
+
+      %{id: ticket_operator_id_2} =
+        ticket_operator_fixture(%{
+          ticket_id: ticket_id,
+          employer_id: operator.id,
+          active: true
+        })
+
+      assert {:ok, %Ticket{id: ^ticket_id, active: false}} =
+               OperatorTicketContext.deactivate_ticket(ticket_id)
+
+      assert %{active: false} = Customers.get_ticket_operator!(ticket_operator_id_1)
+      assert %{active: false} = Customers.get_ticket_operator!(ticket_operator_id_2)
+    end
+
+    test "Return error if ticket does not exist" do
+      non_existing_ticket_id = 777_777
+
+      assert {:error, "Ticket with id: #{non_existing_ticket_id} not found"} ==
+               OperatorTicketContext.deactivate_ticket(non_existing_ticket_id)
+    end
+  end
 end

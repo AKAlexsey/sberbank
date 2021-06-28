@@ -21,8 +21,16 @@
             <button
                     phx-click="leave_ticket"
                     phx-value-ticket-id="<%= ticket.id %>"
-                    class="btn btn-outline-danger">
+                    class="btn btn-outline-danger"
+                    data-confirm="Are y">
               Leave
+            </button>
+            <button
+                    phx-click="deactivate_ticket"
+                    phx-value-ticket-id="<%= ticket.id %>"
+                    class="btn btn-danger"
+                    data-confirm="Are you sure you want to close ticket">
+              Close
             </button>
           </td>
         </li>

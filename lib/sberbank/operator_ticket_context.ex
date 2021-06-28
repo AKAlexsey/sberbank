@@ -52,7 +52,7 @@ defmodule Sberbank.OperatorTicketContext do
   @spec operator_did_not_left_ticket_recently?(Ticket.t(), integer | binary) ::
           :ok | {:error, :try_later}
   defp operator_did_not_left_ticket_recently?(
-         %Ticket{id: ticket_id, topic: topic, ticket_operators: ticket_operators},
+         %Ticket{ticket_operators: ticket_operators},
          checked_operator_id
        ) do
     now = NaiveDateTime.utc_now()
@@ -133,6 +133,53 @@ defmodule Sberbank.OperatorTicketContext do
     |> case do
       nil -> nil
       %{employer: employer} -> employer
+    end
+  end
+
+  @spec deactivate_ticket(integer | binary | Ticket.t()) :: {:ok, Ticket.t()} | {:error, binary}
+  def deactivate_ticket(%Ticket{ticket_operators: ticket_operators} = ticket)
+      when is_list(ticket_operators) do
+    Repo.transaction(fn ->
+      try do
+        {:ok, updated_ticket} = Customers.update_ticket(ticket, %{active: false})
+
+        ticket_operators
+        |> Enum.each(fn
+          %{active: true} = ticket_operator ->
+            {:ok, _} = Customers.update_ticket_operator(ticket_operator, %{active: false})
+
+          _ ->
+            :ok
+        end)
+
+        updated_ticket
+      rescue
+        e ->
+          {:error, Exception.message(e)}
+      end
+    end)
+    |> case do
+      {:ok, {:error, reason}} ->
+        {:error, reason}
+
+      {:ok, %Ticket{} = ticket} ->
+        {:ok, ticket}
+    end
+  end
+
+  def deactivate_ticket(%Ticket{id: ticket_id}) do
+    deactivate_ticket(ticket_id)
+  end
+
+  def deactivate_ticket(ticket_id) do
+    ticket_id
+    |> Customers.get_ticket([:operators])
+    |> case do
+      nil ->
+        {:error, "Ticket with id: #{ticket_id} not found"}
+
+      ticket ->
+        deactivate_ticket(ticket)
     end
   end
 end

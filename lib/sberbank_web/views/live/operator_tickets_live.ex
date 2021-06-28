@@ -130,6 +130,15 @@ defmodule SberbankWeb.OperatorTicketsLive do
     {:noreply, assign_socket_data(socket)}
   end
 
+  def handle_event(
+        "deactivate_ticket",
+        %{"ticket-id" => ticket_id},
+        %{assigns: %{operator: operator}} = socket
+      ) do
+    OperatorClient.deactivate_ticket(operator, ticket_id)
+    {:noreply, assign_socket_data(socket)}
+  end
+
   #  def handle_event("start", _value, socket) do
   #    StateManagementApi.start(@default_experiment_id)
   #    StageManagementApi.start_requesting(@default_experiment_id)

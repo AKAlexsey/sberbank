@@ -114,13 +114,20 @@ defmodule Sberbank.Pipeline.OperatorClient do
      }}
   end
 
-  def handle_cast(
+  def handle_call(
         {:deactivate_ticket, ticket_id},
+        _from,
         %{
           active_tickets: active_tickets
         } = state
       ) do
-    {:noreply, state}
+    result = OperatorTicketContext.deactivate_ticket(ticket_id)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Error deactivating ticket #{ticket_id}: #{inspect(result)}"
+    end)
+
+    {:reply, result, remove_active_ticket(state, ticket_id)}
   end
 
   def handle_call(

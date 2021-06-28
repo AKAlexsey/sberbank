@@ -13,6 +13,7 @@
         <th>ID</th>
         <th>Topic</th>
         <th>Competence</th>
+        <th>Active</th>
         <th>Ticket operators</th>
         <th>Delete</th>
       </tr>
@@ -21,9 +22,19 @@
           <td><%= ticket.id %></td>
           <td><%= ticket.topic %></td>
           <td><%= make_competence_name(ticket.competence) %></td>
+          <td><%= ticket_active_label(ticket) %></td>
           <td><%= make_operators_list(ticket) %></td>
           <td>
-            <%= link "Delete", to: Routes.customer_customer_tickets_path(@conn, :delete, @customer, ticket), class: "btn btn-danger", method: :delete %>
+            <%= link "Delete",
+                      to: Routes.customer_customer_tickets_path(@conn, :delete, @customer, ticket),
+                      class: "btn btn-danger",
+                      method: :delete,
+                      data: [confirm: "Are you sure want to delete?"] %>
+            <%= link "Close",
+                      to: Routes.customer_customer_tickets_path(@conn, :update, @customer, ticket),
+                      class: "btn btn-danger",
+                      method: :patch,
+                      data: [confirm: "Are you sure want to close?"] %>
           </td>
         </tr>
       <% end %>
