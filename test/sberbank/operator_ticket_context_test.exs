@@ -3,6 +3,7 @@ defmodule Sberbank.OperatorTicketContextTest do
 
   alias Sberbank.{Customers, OperatorTicketContext, Staff}
   alias Sberbank.Customers.{Ticket, TicketOperator}
+  alias Sberbank.Staff.Employer
 
   @employer_default_attrs %{admin: true, name: "ExampleOperator"}
   @customer_default_attrs %{admin: true, email: "angry.hourwife@gmail.com"}
@@ -223,6 +224,62 @@ defmodule Sberbank.OperatorTicketContextTest do
 
       assert {:error, "No ticket with id: #{non_existing_ticket_id}"} ==
                OperatorTicketContext.add_operator_to_ticket(non_existing_ticket_id, operator)
+    end
+  end
+
+  describe "#get_ticket_with_active_operator" do
+    setup do
+      customer = customer_fixture()
+      competence = competence_fixture()
+      operator = employer_fixture(%{name: "ExperiencedOperator"})
+
+      ticket =
+        ticket_fixture(%{
+          customer_id: customer.id,
+          active: true,
+          topic: "Can't pay credit",
+          competence_id: competence.id
+        })
+
+      {
+        :ok,
+        operator: operator, ticket: ticket
+      }
+    end
+
+    test "Returns ticket and nil as operator is there are no acive operators", %{
+      operator: operator,
+      ticket: %{id: ticket_id}
+    } do
+      ticket_operator_fixture(%{
+        ticket_id: ticket_id,
+        employer_id: operator.id,
+        active: false
+      })
+
+      assert {:ok, {%Ticket{id: ^ticket_id}, nil}} =
+               OperatorTicketContext.get_ticket_with_active_operator(ticket_id)
+    end
+
+    test "Return ticket and operator of ticket has active operator", %{
+      ticket: %{id: ticket_id},
+      operator: %{id: operator_id}
+    } do
+      ticket_operator_fixture(%{
+        ticket_id: ticket_id,
+        employer_id: operator_id,
+        active: true
+      })
+
+      assert {:ok, {%Ticket{id: ^ticket_id}, %Employer{id: ^operator_id}}} =
+               OperatorTicketContext.get_ticket_with_active_operator(ticket_id)
+    end
+
+    test "Return error if ticket does not exist" do
+      non_existing_ticket_id = 777_777
+
+      assert {:error, "Ticket with id: #{non_existing_ticket_id} not found"} ==
+               OperatorTicketContext.get_ticket_with_active_operator(non_existing_ticket_id)
     end
   end
 end

@@ -77,4 +77,30 @@ defmodule Sberbank.OperatorTicketContext do
         {:error, inspect(unexpected_reason)}
     end
   end
+
+  @spec get_ticket_with_active_operator(integer | binary) ::
+          {:ok, {Ticket.t(), Employer.t() | nil}} | {:error, binary}
+  def get_ticket_with_active_operator(ticket_id) do
+    with ticket when not is_nil(ticket) <-
+           Customers.get_ticket(ticket_id, ticket_operators: :employer),
+         active_operator <-
+           select_active_ticket_operator(ticket) do
+      {:ok, {ticket, active_operator}}
+    else
+      nil ->
+        {:error, "Ticket with id: #{ticket_id} not found"}
+
+      unexpected_reason ->
+        {:error, inspect(unexpected_reason)}
+    end
+  end
+
+  defp select_active_ticket_operator(%{ticket_operators: ticket_operators}) do
+    ticket_operators
+    |> Enum.find(& &1.active)
+    |> case do
+      nil -> nil
+      %{employer: employer} -> employer
+    end
+  end
 end

@@ -53,7 +53,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
     end
   end
 
-  @spec(ticket_removed(Employer | integer, integer | binary) :: :ok, {:error, binary})
+  @spec ticket_removed(Employer | integer, integer | binary) :: :ok | {:error, binary}
   def ticket_removed(%Employer{} = operator, ticket_id) do
     operator
     |> make_server_name()
@@ -142,11 +142,13 @@ defmodule Sberbank.Pipeline.OperatorClient do
 
   def handle_cast(
         {:ticket_removed, ticket_id},
-        %{
-          active_tickets: active_tickets
-        } = state
+        %{operator: %Employer{name: name}} = state
       ) do
-    {:noreply, state}
+    Logger.info(fn ->
+      "#{__MODULE__} Operator #{name} ticket removed with ID: #{ticket_id}"
+    end)
+
+    {:noreply, remove_active_ticket(state, ticket_id)}
   end
 
   defp remove_active_ticket(%{active_tickets: active_tickets} = state, ticket_id) do

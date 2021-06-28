@@ -3,7 +3,8 @@ defmodule SberbankWeb.CustomerTicketsController do
 
   alias Sberbank.{Customers, Staff}
   alias Sberbank.Customers.Ticket
-  alias Sberbank.Pipeline.RabbitClient
+  alias Sberbank.OperatorTicketContext
+  alias Sberbank.Pipeline.{OperatorClient, RabbitClient}
 
   def index(conn, %{"customer_id" => customer_id}) do
     %{customer: customer, tickets: tickets, competences: competences} =
@@ -43,12 +44,31 @@ defmodule SberbankWeb.CustomerTicketsController do
 
   def delete(conn, %{"customer_id" => customer_id, "id" => ticket_id}) do
     ticket_id
-    |> Customers.get_ticket!()
-    |> Customers.delete_ticket()
+    |> OperatorTicketContext.get_ticket_with_active_operator()
+    |> case do
+      {:ok, {ticket, nil}} ->
+        ticket
+        |> Customers.delete_ticket()
 
-    conn
-    |> put_flash(:info, "Ticket deleted successfully")
-    |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
+        conn
+        |> put_flash(:info, "Ticket deleted successfully")
+        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
+
+      {:ok, {ticket, active_operator}} ->
+        ticket
+        |> Customers.delete_ticket()
+
+        OperatorClient.ticket_removed(active_operator, ticket.id)
+
+        conn
+        |> put_flash(:info, "Ticket deleted successfully. Operator notified")
+        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
+
+      {:error, reason} ->
+        conn
+        |> put_flash(:error, reason)
+        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
+    end
   end
 
   defp preload_necessary_data(customer_id) do

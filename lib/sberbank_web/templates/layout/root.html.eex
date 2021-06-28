@@ -14,7 +14,6 @@
             <li class="nav-item"><a href="https://hexdocs.pm/phoenix/overview.html" class="nav-link">Get Started</a></li>
             <li class="nav-item"><%= link "Employers", to: Routes.employer_path(@conn, :index), class: "nav-link" %></li>
             <li class="nav-item"><%= link "Competencies", to: Routes.competence_path(@conn, :index), class: "nav-link" %></li>
-            <li class="nav-item"><%= link "Employer competencies", to: Routes.employer_competence_path(@conn, :index), class: "nav-link" %></li>
             <li class="nav-item"><%= link "Customers", to: Routes.customer_path(@conn, :index), class: "nav-link" %></li>
             <li class="nav-item"><%= link "Tickets", to: Routes.ticket_path(@conn, :index), class: "nav-link" %></li>
             <%= if function_exported?(Routes, :live_dashboard_path, 2) do %>

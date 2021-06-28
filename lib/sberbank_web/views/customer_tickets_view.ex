@@ -7,8 +7,8 @@ defmodule SberbankWeb.CustomerTicketsView do
 
   def make_operators_list(%{ticket_operators: ticket_operators}) do
     operators_data =
-      Enum.sort_by(ticket_operators, fn %{employer: %{id: operator_id}, active: active} ->
-        if(active, do: 1000, else: operator_id)
+      Enum.sort_by(ticket_operators, fn %{id: ticket_operator_id, active: active} ->
+        if(active, do: 1000, else: ticket_operator_id)
       end)
 
     content_tag(

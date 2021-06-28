@@ -8,7 +8,7 @@
   </li>
 
   <li>
-    <%= link "Show customer tickets", to: Routes.customer_customer_tickets_path(@conn, :index, @customer), class: "btn btn-success" %>
+    <%= link "Show customer tickets", to: Routes.customer_customer_tickets_path(@conn, :index, @customer), class: "btn btn-warning" %>
   </li>
 
 </ul>

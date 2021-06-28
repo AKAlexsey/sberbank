@@ -25,7 +25,6 @@ defmodule SberbankWeb.Router do
     end
 
     resources "/competencies", CompetenceController
-    resources "/employer_competencies", EmployerCompetenceController
 
     resources "/customers", CustomerController do
       resources "/tickets", CustomerTicketsController, only: [:index, :create, :delete]

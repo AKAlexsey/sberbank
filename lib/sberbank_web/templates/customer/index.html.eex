@@ -14,7 +14,7 @@
       <td><%= customer.email %></td>
 
       <td>
-        <span><%= link "Show customer tickets", to: Routes.customer_customer_tickets_path(@conn, :index, customer), class: "btn btn-success" %></span>
+        <span><%= link "Show customer tickets", to: Routes.customer_customer_tickets_path(@conn, :index, customer), class: "btn btn-warning" %></span>
         <span><%= link "Show", to: Routes.customer_path(@conn, :show, customer), class: "btn btn-primary" %></span>
         <span><%= link "Edit", to: Routes.customer_path(@conn, :edit, customer), class: "btn btn-success" %></span>
         <span><%= link "Delete", to: Routes.customer_path(@conn, :delete, customer), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"] %></span>
