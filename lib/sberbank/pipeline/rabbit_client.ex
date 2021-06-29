@@ -50,17 +50,16 @@ defmodule Sberbank.Pipeline.RabbitClient do
     GenServer.cast(__MODULE__, {:declare_exchange, exchange_name})
   end
 
+  def unbind_operator_topic(operator, competence) do
+    GenServer.cast(__MODULE__, {:unbind_operator_topic, operator, competence})
+  end
+
   def subscribe_operator_to_exchanges(%Employer{} = operator) do
     GenServer.cast(__MODULE__, {:subscribe_operator_to_exchanges, operator})
   end
 
   def subscribe_to_operator_queue(%Employer{} = operator, process_pid) do
     GenServer.cast(__MODULE__, {:subscribe_to_operator_queue, operator, process_pid})
-  end
-
-  # TODO legacy rewrite to broadcast
-  def delete_competence_exchange(competence) do
-    GenServer.cast(__MODULE__, {:delete_competence_exchange, competence})
   end
 
   def acknowledge_message(delivery_tag) when is_integer(delivery_tag) do
@@ -129,6 +128,19 @@ defmodule Sberbank.Pipeline.RabbitClient do
   end
 
   def handle_cast(
+        {:unbind_operator_topic, operator, competence},
+        %{channel: channel} = state
+      ) do
+    result = Toolkit.unbind_operator_topic(channel, operator, competence)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Unbinding operator #{operator.name} result: #{inspect(result, pretty: true)}"
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
         {:subscribe_operator_to_exchanges, %Employer{id: id, name: name} = operator},
         %{channel: channel} = state
       ) do
@@ -149,21 +161,6 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
     Logger.info(fn ->
       "#{__MODULE__} Subscription operator #{id} #{name} to queue result: #{
-        inspect(result, pretty: true)
-      }"
-    end)
-
-    {:noreply, state}
-  end
-
-  def handle_cast(
-        {:delete_competence_exchange, %{id: id, name: name} = competence},
-        %{channel: channel} = state
-      ) do
-    result = Toolkit.delete_exchange(channel, competence)
-
-    Logger.info(fn ->
-      "#{__MODULE__} Termination exchange for #{id} #{name}. Result: #{
         inspect(result, pretty: true)
       }"
     end)

@@ -1,14 +1,15 @@
 defmodule SberbankWeb.OperatorTicketsLive do
   use SberbankWeb, :live_view
 
-  alias Sberbank.Staff
-
+  alias Sberbank.{Eventbus, Staff}
   alias Sberbank.Pipeline.{OperatorClient, OperatorDynamicSupervisor, RabbitClient}
 
   @refresh_interval 500
 
   def mount(%{"employer_id" => employer_id}, session, socket) do
     operator = Staff.get_employer!(employer_id, [:competencies])
+
+    Eventbus.subscribe_operator(operator)
 
     OperatorDynamicSupervisor.start_for_operator(operator)
     |> case do
@@ -28,18 +29,26 @@ defmodule SberbankWeb.OperatorTicketsLive do
       |> assign(:competences, Enum.map(operator.competencies, &Map.from_struct/1))
       |> assign_socket_data()
 
-    schedule_interval_rendering()
-
     {:ok, assigned_socket}
   end
 
+  def handle_info({:operator_updated, updated_operator_id}, socket) do
+    operator = Staff.get_employer!(updated_operator_id, [:competencies])
+    updated_socket =
+      socket
+      |> assign(:operator, operator)
+      |> assign(:competences, Enum.map(operator.competencies, &Map.from_struct/1))
+      |> assign_socket_data()
+
+    {:noreply, updated_socket}
+  end
+
   def handle_info(:render, socket) do
-    schedule_interval_rendering()
     {:noreply, assign_socket_data(socket)}
   end
 
-  defp schedule_interval_rendering do
-    Process.send_after(self(), :render, @refresh_interval)
+  defp render_after(time_interval \\ @refresh_interval) do
+    Process.send_after(self(), :render, time_interval)
   end
 
   def handle_event(

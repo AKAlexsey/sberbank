@@ -58,21 +58,20 @@ defmodule Sberbank.Pipeline.Toolkit do
   end
 
   @spec declare_exchange(map, binary, list) :: {:ok, map} | {:error, atom}
-  def declare_exchange(rabbit_channel, exchange_name, opts \\ []) do
+  def declare_exchange(channel, exchange_name, opts \\ []) do
     default_opts = [durable: true]
 
-    AMQP.Exchange.topic(rabbit_channel, exchange_name, Keyword.merge(default_opts, opts))
+    AMQP.Exchange.topic(channel, exchange_name, Keyword.merge(default_opts, opts))
   end
 
-  @spec delete_exchange(map, Competence.t()) :: {:ok, map} | {:error, atom}
-  def delete_exchange(rabbit_channel, %Competence{} = competence) do
-    exchange_name = make_exchange_name(competence)
+  @spec unbind_operator_topic(map, Employer.t, Competence.t) :: {:ok, map} | {:error, atom}
+  def unbind_operator_topic(channel, %Employer{} = operator, %Competence{} = competence) do
+    queue_name = get_operator_queue_name(operator)
 
-    AMQP.Exchange.delete(rabbit_channel, exchange_name, nowait: true)
-  end
-
-  defp make_exchange_name(%Competence{letter: letter, name: name}) do
-    String.downcase("exchange_#{name}_letter_#{letter}")
+    [competence]
+    |> perform_action_on_queue(fn exchange_name, routing_key ->
+      AMQP.Queue.unbind(channel, queue_name, exchange_name, routing_key: routing_key)
+    end)
   end
 
   @initial_tickets_exchange "initial_tickets_exchange"
@@ -115,23 +114,23 @@ defmodule Sberbank.Pipeline.Toolkit do
 
   @spec subscribe_to_operator_queue(map, Competence.t(), pid()) ::
           {:ok, map} | {:ok, :no_ticket} | {:error, binary}
-  def subscribe_to_operator_queue(rabbit_channel, %Employer{} = operator, process_pid) do
+  def subscribe_to_operator_queue(channel, %Employer{} = operator, process_pid) do
     queue_name = get_operator_queue_name(operator)
     # play with acknowledgement
-    AMQP.Basic.consume(rabbit_channel, queue_name, process_pid)
+    AMQP.Basic.consume(channel, queue_name, process_pid)
   end
 
   @spec acknowledge_message(map, integer, list) :: :ok | {:error, reason :: :blocked | :closing}
-  def acknowledge_message(rabbit_channel, delivery_tag, opts \\ []) do
-    AMQP.Basic.ack(rabbit_channel, delivery_tag, opts)
+  def acknowledge_message(channel, delivery_tag, opts \\ []) do
+    AMQP.Basic.ack(channel, delivery_tag, opts)
   end
 
   @spec fetch_ticket_for_operator(map, Competence.t()) ::
           {:ok, map} | {:ok, :no_ticket} | {:error, binary}
-  def fetch_ticket_for_operator(rabbit_channel, %Employer{} = operator) do
+  def fetch_ticket_for_operator(channel, %Employer{} = operator) do
     queue_name = get_operator_queue_name(operator)
 
-    with {:basic_deliver, json_ticket_data} <- AMQP.Basic.consume(rabbit_channel, queue_name),
+    with {:basic_deliver, json_ticket_data} <- AMQP.Basic.consume(channel, queue_name),
          {:ok, %{"id" => ticket_id}} <- Jason.decode(json_ticket_data),
          {:ok, ticket} <- Customers.get_ticket(ticket_id) do
       {:ok, ticket}

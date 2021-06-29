@@ -13,7 +13,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
   @ticket_requeue_timeout 1000
 
   alias Sberbank.Customers.{Ticket, TicketOperator}
-  alias Sberbank.{OperatorTicketContext, Staff}
+  alias Sberbank.{Eventbus, OperatorTicketContext, Staff}
   alias Sberbank.Staff.Employer
   alias Sberbank.Pipeline.RabbitClient
   alias Sberbank.Utils
@@ -102,12 +102,17 @@ defmodule Sberbank.Pipeline.OperatorClient do
   def init(%{operator: operator}) do
     RabbitClient.subscribe_operator_to_exchanges(operator)
     RabbitClient.subscribe_to_operator_queue(operator, self())
+    Eventbus.subscribe_exchanges()
+    Eventbus.subscribe_operator(operator)
     active_tickets = OperatorTicketContext.get_operator_active_tickets(operator)
     check_new_tickets(2000)
+
+    %{competencies: competencies} = Staff.get_employer!(operator.id, [:competencies])
 
     {:ok,
      %{
        operator: operator,
+       competencies: competencies,
        active: true,
        active_tickets: active_tickets,
        tickets_queue: :queue.new()
@@ -150,6 +155,10 @@ defmodule Sberbank.Pipeline.OperatorClient do
     end)
 
     {:reply, :ok, remove_active_ticket(state, ticket_id)}
+  end
+
+  def handle_call(:get_active_tickets, _from, state) do
+    {:reply, Map.get(state, :active_tickets), state}
   end
 
   def handle_cast(
@@ -246,16 +255,62 @@ defmodule Sberbank.Pipeline.OperatorClient do
     {:noreply, state}
   end
 
+  def handle_info({:competence_updated, competence}, %{operator: operator, competencies: competencies} = state) do
+    competencies
+    |> Enum.find(fn %{id: competence_id} -> competence_id == competence.id end)
+    |> case do
+      nil ->
+        {:noreply, state}
+      competence ->
+        RabbitClient.subscribe_operator_to_exchanges(operator)
+        {:noreply, update_competence(state, competence)}
+       end
+  end
+
+  def handle_info({:competence_deleted, competence}, %{operator: operator, competencies: competencies} = state) do
+    competencies
+    |> Enum.find(fn %{id: competence_id} -> competence_id == competence.id end)
+    |> case do
+      nil ->
+        {:noreply, state}
+      competence ->
+        RabbitClient.unbind_operator_topic(operator, competence)
+        {:noreply, remove_competence(state, competence)}
+       end
+  end
+
+  def handle_info({:operator_updated, updated_operator_id}, %{operator: %{id: id}} = state) do
+    updated_operator = Staff.get_employer!(id, [:competencies])
+    %{competencies: refreshed_competencies} = updated_operator
+    RabbitClient.subscribe_operator_to_exchanges(updated_operator)
+    {:noreply, %{state | operator: updated_operator, competencies: refreshed_competencies}}
+  end
+
   def handle_info(unexpected_handle_info, state) do
     Logger.error(fn ->
-      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}"
+      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}\nState: #{inspect(state, pretty: true)}"
     end)
 
     {:noreply, state}
   end
 
-  def handle_call(:get_active_tickets, _from, state) do
-    {:reply, Map.get(state, :active_tickets), state}
+  defp update_competence(%{competencies: competencies} = state, %{id: updated_id} = updated_competence) do
+    new_competencies = competencies
+      |> Enum.map(fn
+      %{id: competence_id} when competence_id == updated_id ->
+        updated_competence
+      not_updated_competence ->
+        not_updated_competence
+    end)
+
+    %{state | competencies: new_competencies}
+  end
+
+  defp remove_competence(%{competencies: competencies} = state, %{id: removed_id}) do
+    new_competencies =
+      Enum.reject(competencies, fn %{id: competence_id} -> competence_id == removed_id end)
+
+    %{state | competencies: new_competencies}
   end
 
   defp check_new_tickets(check_interval \\ @check_tickets_interval) do

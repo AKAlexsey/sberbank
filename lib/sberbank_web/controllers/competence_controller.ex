@@ -1,6 +1,7 @@
 defmodule SberbankWeb.CompetenceController do
   use SberbankWeb, :controller
 
+  alias Sberbank.Eventbus
   alias Sberbank.Pipeline.{RabbitClient, Toolkit}
   alias Sberbank.Staff
   alias Sberbank.Staff.Competence
@@ -60,9 +61,8 @@ defmodule SberbankWeb.CompetenceController do
 
   def delete(conn, %{"id" => id}) do
     competence = Staff.get_competence!(id)
-    # TODO move to competence pubsub
-    RabbitClient.delete_competence_exchange(competence)
     {:ok, _competence} = Staff.delete_competence(competence)
+    Eventbus.broadcast_competence_deleted(competence)
 
     conn
     |> put_flash(:info, "Competence deleted successfully.")

@@ -45,7 +45,9 @@ defmodule Sberbank.MixProject do
       {:gettext, "~> 0.11"},
       {:jason, "~> 1.0"},
       # Rabbit
-      {:amqp, "~> 2.1"}
+      {:amqp, "~> 2.1"},
+      # PubSub
+      {:phoenix_pubsub, "~> 2.0"}
     ]
   end
 
