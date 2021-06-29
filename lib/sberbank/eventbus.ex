@@ -56,7 +56,13 @@ defmodule Sberbank.Eventbus do
   def broadcast_operator_updated(%Employer{id: operator_id} = operator) do
     operator
     |> operator_topic()
-    |> broadcast({:operator_updated, operator_id})
+    |> broadcast(:operator_updated)
+  end
+
+  def broadcast_operator_tickets_updated(operator, active_tickets) do
+    operator
+    |> operator_topic()
+    |> broadcast({:operator_tickets_updated, active_tickets})
   end
 
   defp operator_topic(%Employer{id: id}), do: "operator:#{id}"

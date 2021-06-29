@@ -212,14 +212,16 @@ defmodule Sberbank.Pipeline.OperatorClient do
          {:ok, {ticket, ticket_operator}} <-
            OperatorTicketContext.add_operator_to_ticket(ticket_id, operator) do
       check_new_tickets()
+      new_active_tickets = [{ticket, ticket_operator}] ++ tickets
 
       new_state = %{
         state
-        | active_tickets: [{ticket, ticket_operator}] ++ tickets,
+        | active_tickets: new_active_tickets,
           tickets_queue: new_tickets_queue
       }
 
       RabbitClient.acknowledge_message(delivery_tag)
+      Eventbus.broadcast_operator_tickets_updated(operator, new_active_tickets)
 
       {:noreply, new_state}
     else
@@ -288,11 +290,15 @@ defmodule Sberbank.Pipeline.OperatorClient do
     end
   end
 
-  def handle_info({:operator_updated, updated_operator_id}, %{operator: %{id: id}} = state) do
+  def handle_info(:operator_updated, %{operator: %{id: id}} = state) do
     updated_operator = Staff.get_employer!(id, [:competencies])
     %{competencies: refreshed_competencies} = updated_operator
     RabbitClient.subscribe_operator_to_exchanges(updated_operator)
     {:noreply, %{state | operator: updated_operator, competencies: refreshed_competencies}}
+  end
+
+  def handle_info({:operator_tickets_updated, _}, state) do
+    {:noreply, state}
   end
 
   def handle_info(unexpected_handle_info, state) do

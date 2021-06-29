@@ -38,8 +38,20 @@ defmodule SberbankWeb.OperatorTicketsLive do
     {:noreply, assign_socket_data(socket)}
   end
 
-  def handle_info({:operator_updated, _updated_operator_id}, socket) do
+  def handle_info(:operator_updated, socket) do
     {:noreply, assign_socket_data(socket)}
+  end
+
+  def handle_info({:operator_tickets_updated, new_active_tickets}, socket) do
+    current_tickets =
+      new_active_tickets
+      |> make_current_tickets()
+
+    updated_socket =
+      socket
+      |> assign(:current_tickets, current_tickets)
+
+    {:noreply, updated_socket}
   end
 
   def handle_info(:render, %{} = socket) do
@@ -72,13 +84,22 @@ defmodule SberbankWeb.OperatorTicketsLive do
 
   defp assign_socket_data(%{assigns: %{operator: %{id: operator_id}}} = socket) do
     operator = Staff.get_employer!(operator_id, [:competencies])
-    tickets = OperatorClient.get_active_tickets(operator)
-    current_tickets = Enum.map(tickets, fn {ticket, _} -> ticket end)
+
+    current_tickets =
+      operator
+      |> OperatorClient.get_active_tickets()
+      |> make_current_tickets()
+
     %{competencies: competencies} = operator
 
     socket
     |> assign(:operator, operator)
     |> assign(:competencies, Enum.map(competencies, &Map.from_struct/1))
     |> assign(:current_tickets, current_tickets)
+  end
+
+  def make_current_tickets(tickets) do
+    tickets
+    |> Enum.map(fn {ticket, _} -> ticket end)
   end
 end
