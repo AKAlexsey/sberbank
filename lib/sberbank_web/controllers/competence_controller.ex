@@ -18,7 +18,7 @@ defmodule SberbankWeb.CompetenceController do
   def create(conn, %{"competence" => competence_params}) do
     case Staff.create_competence(competence_params) do
       {:ok, competence} ->
-        Toolkit.declare_competence_exchanges()
+        Toolkit.declare_exchanges()
 
         conn
         |> put_flash(:info, "Competence created successfully.")
@@ -45,7 +45,7 @@ defmodule SberbankWeb.CompetenceController do
 
     case Staff.update_competence(competence, competence_params) do
       {:ok, competence} ->
-        Toolkit.declare_competence_exchanges()
+        Toolkit.declare_exchanges()
 
         conn
         |> put_flash(:info, "Competence updated successfully.")

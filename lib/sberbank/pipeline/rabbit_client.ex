@@ -12,20 +12,42 @@ defmodule Sberbank.Pipeline.RabbitClient do
   alias Sberbank.Staff.Employer
   alias Sberbank.Pipeline.Toolkit
 
-  def push_ticket(%Ticket{} = ticket) do
-    GenServer.cast(__MODULE__, {:push_ticket, ticket})
+  def initial_push_ticket(ticket_id) when is_integer(ticket_id) or is_binary(ticket_id) do
+    ticket_id
+    |> Customers.get_ticket()
+    |> initial_push_ticket()
   end
 
-  def push_ticket(ticket_id) when is_integer(ticket_id) or is_binary(ticket_id) do
-    ticket = Customers.get_ticket(ticket_id)
-    GenServer.cast(__MODULE__, {:push_ticket, ticket})
+  def initial_push_ticket(%Ticket{} = ticket) do
+    GenServer.cast(__MODULE__, {:initial_push_customer_ticket, ticket})
   end
 
-  def push_ticket(unexpected_argument) do
+  def initial_push_ticket(unexpected_argument) do
     {:error,
      "Unexpected argument. Expected #{inspect(Ticket)}, integer or binary, given: #{
        unexpected_argument
      }"}
+  end
+
+  def repeat_push_ticket(ticket_id) when is_integer(ticket_id) or is_binary(ticket_id) do
+    ticket_id
+    |> Customers.get_ticket()
+    |> repeat_push_ticket()
+  end
+
+  def repeat_push_ticket(%Ticket{} = ticket) do
+    GenServer.cast(__MODULE__, {:repeat_push_customer_ticket, ticket})
+  end
+
+  def repeat_push_ticket(unexpected_argument) do
+    {:error,
+     "Unexpected argument. Expected #{inspect(Ticket)}, integer or binary, given: #{
+       unexpected_argument
+     }"}
+  end
+
+  def declare_exchange(exchange_name) do
+    GenServer.cast(__MODULE__, {:declare_exchange, exchange_name})
   end
 
   def subscribe_operator_to_exchanges(%Employer{} = operator) do
@@ -34,10 +56,6 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
   def subscribe_to_operator_queue(%Employer{} = operator, process_pid) do
     GenServer.cast(__MODULE__, {:subscribe_to_operator_queue, operator, process_pid})
-  end
-
-  def declare_competence_exchanges(competence) do
-    GenServer.cast(__MODULE__, {:declare_competence_exchanges, competence})
   end
 
   def delete_competence_exchange(competence) do
@@ -63,15 +81,41 @@ defmodule Sberbank.Pipeline.RabbitClient do
   end
 
   def handle_continue(:after_start_functions, state) do
-    Toolkit.declare_competence_exchanges()
+    Toolkit.declare_exchanges()
     {:noreply, state}
   end
 
   def handle_cast(
-        {:push_ticket, %Ticket{id: id, topic: topic} = ticket},
+        {:initial_push_customer_ticket, %Ticket{id: id, topic: topic} = ticket},
         %{channel: channel} = state
       ) do
-    result = Toolkit.put_customer_ticket(channel, ticket)
+    result = Toolkit.initial_push_customer_ticket(channel, ticket)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Push ticket #{id} #{topic}. Result: #{inspect(result, pretty: true)}"
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:declare_exchange, exchange_name},
+        %{channel: channel} = state
+      ) do
+    result = Toolkit.declare_exchange(channel, exchange_name)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Declaring exchange #{exchange_name} result: #{inspect(result, pretty: true)}"
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:repeat_push_customer_ticket, %Ticket{id: id, topic: topic} = ticket},
+        %{channel: channel} = state
+      ) do
+    result = Toolkit.repeat_push_customer_ticket(channel, ticket)
 
     Logger.info(fn ->
       "#{__MODULE__} Push ticket #{id} #{topic}. Result: #{inspect(result, pretty: true)}"
@@ -103,19 +147,6 @@ defmodule Sberbank.Pipeline.RabbitClient do
       "#{__MODULE__} Subscription operator #{id} #{name} to queue result: #{
         inspect(result, pretty: true)
       }"
-    end)
-
-    {:noreply, state}
-  end
-
-  def handle_cast(
-        {:declare_competence_exchanges, %{id: id, name: name} = competence},
-        %{channel: channel} = state
-      ) do
-    result = Toolkit.declare_exchange(channel, competence)
-
-    Logger.info(fn ->
-      "#{__MODULE__} Started exchange for #{id} #{name}. Result: #{inspect(result, pretty: true)}"
     end)
 
     {:noreply, state}

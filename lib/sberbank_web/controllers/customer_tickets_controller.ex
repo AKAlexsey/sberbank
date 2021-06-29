@@ -23,7 +23,7 @@ defmodule SberbankWeb.CustomerTicketsController do
   def create(conn, %{"customer_id" => customer_id, "ticket" => ticket_params}) do
     case Customers.create_ticket(ticket_params) do
       {:ok, ticket} ->
-        RabbitClient.push_ticket(ticket)
+        RabbitClient.initial_push_ticket(ticket)
 
         conn
         |> put_flash(:info, "Ticket created successfully")

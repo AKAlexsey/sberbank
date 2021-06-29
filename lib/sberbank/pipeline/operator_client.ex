@@ -265,7 +265,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
   defp push_ticket_to_exchange(ticket_id) do
     Task.start(fn ->
       Process.sleep(@ticket_requeue_timeout)
-      push_ticket_result = RabbitClient.push_ticket(ticket_id)
+      push_ticket_result = RabbitClient.repeat_push_ticket(ticket_id)
 
       Logger.info(fn ->
         "#{__MODULE__} Pushing ticket with ID: #{ticket_id} to queue result: #{

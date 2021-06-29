@@ -9,41 +9,34 @@ defmodule Sberbank.Pipeline.Toolkit do
   alias Sberbank.Staff
   alias Sberbank.Staff.{Competence, Employer}
 
-  # Users API
-  @spec put_customer_ticket(map, Ticket.t()) :: :ok | {:error, binary}
-  def put_customer_ticket(channel, %Ticket{id: id, topic: topic}) do
-    ticket = Customers.get_ticket!(id, [:competence, :customer])
-    %{competence: competence} = ticket
-    routing_key = get_routing_key(competence)
-    exchange_name = make_exchange_name(competence)
-    payload = Jason.encode!(%{id: id, topic: topic})
-
-    AMQP.Basic.publish(channel, exchange_name, routing_key, payload)
-  end
-
   @spec subscribe_operator_to_exchanges(map, Employer.t()) :: :ok | {:error, binary}
-  def subscribe_operator_to_exchanges(channel, %Employer{id: id} = employer) do
-    %{competencies: competencies} = employer = Staff.get_employer!(id, [:competencies])
+  def subscribe_operator_to_exchanges(channel, %Employer{id: id}) do
+    %{competencies: operator_competencies} = employer = Staff.get_employer!(id, [:competencies])
 
     queue_name = get_operator_queue_name(employer)
 
-    {:ok, queue_data} = AMQP.Queue.declare(channel, queue_name, durable: false)
-    %{queue: operator_queue} = queue_data
+    {:ok, _queue_data} = AMQP.Queue.declare(channel, queue_name, durable: false)
 
     Staff.list_competencies()
-    |> Enum.map(fn competence ->
-      exchange_name = make_exchange_name(competence)
-      routing_key = get_routing_key(competence)
-
+    |> perform_action_on_queue(fn exchange_name, routing_key ->
       AMQP.Queue.unbind(channel, queue_name, exchange_name, routing_key: routing_key)
     end)
 
-    competencies
-    |> Enum.each(fn %{} = competence ->
-      exchange_name = make_exchange_name(competence)
-      routing_key = get_routing_key(competence)
-
+    operator_competencies
+    |> perform_action_on_queue(fn exchange_name, routing_key ->
       AMQP.Queue.bind(channel, queue_name, exchange_name, routing_key: routing_key)
+    end)
+  end
+
+  defp perform_action_on_queue(competencies, action_function) do
+    competencies
+    |> Enum.each(fn competence ->
+      all_exchanges()
+      |> Enum.map(fn exchange_name ->
+        routing_key = get_routing_key(competence)
+
+        action_function.(exchange_name, routing_key)
+      end)
     end)
   end
 
@@ -64,10 +57,8 @@ defmodule Sberbank.Pipeline.Toolkit do
     {:ok, %{connection: connection, channel: channel}}
   end
 
-  @spec declare_exchange(map, Competence.t(), list) :: {:ok, map} | {:error, atom}
-  def declare_exchange(rabbit_channel, %Competence{} = competence, opts \\ []) do
-    exchange_name = make_exchange_name(competence)
-
+  @spec declare_exchange(map, binary, list) :: {:ok, map} | {:error, atom}
+  def declare_exchange(rabbit_channel, exchange_name, opts \\ []) do
     default_opts = [durable: true]
 
     AMQP.Exchange.topic(rabbit_channel, exchange_name, Keyword.merge(default_opts, opts))
@@ -84,12 +75,42 @@ defmodule Sberbank.Pipeline.Toolkit do
     String.downcase("exchange_#{name}_letter_#{letter}")
   end
 
-  @spec declare_competence_exchanges :: :ok
-  def declare_competence_exchanges do
-    Staff.list_competencies()
-    |> Enum.each(fn competence ->
-      RabbitClient.declare_competence_exchanges(competence)
-    end)
+  @initial_tickets_exchange "initial_tickets_exchange"
+  @repeating_tickets_exchange "repeating_tickets_exchange"
+
+  def all_exchanges do
+    [
+      @initial_tickets_exchange,
+      @repeating_tickets_exchange
+    ]
+  end
+
+  def declare_exchanges do
+    all_exchanges()
+    |> Enum.each(&RabbitClient.declare_exchange/1)
+  end
+
+  @spec initial_push_customer_ticket(map, Ticket.t()) :: :ok | {:error, binary}
+  def initial_push_customer_ticket(channel, %Ticket{} = ticket) do
+    %{routing_key: routing_key, payload: payload} = put_ticket_params(ticket)
+
+    AMQP.Basic.publish(channel, @initial_tickets_exchange, routing_key, payload)
+  end
+
+  @spec repeat_push_customer_ticket(map, Ticket.t()) :: :ok | {:error, binary}
+  def repeat_push_customer_ticket(channel, %Ticket{} = ticket) do
+    %{routing_key: routing_key, payload: payload} = put_ticket_params(ticket)
+
+    AMQP.Basic.publish(channel, @repeating_tickets_exchange, routing_key, payload)
+  end
+
+  @spec put_ticket_params(Ticket.t()) :: %{routing_key: binary, payload: binary}
+  defp put_ticket_params(%Ticket{id: id}) do
+    ticket = Customers.get_ticket!(id, [:competence])
+    %{competence: competence} = ticket
+    routing_key = get_routing_key(competence)
+    payload = Jason.encode!(%{id: id})
+    %{routing_key: routing_key, payload: payload}
   end
 
   @spec subscribe_to_operator_queue(map, Competence.t(), pid()) ::
