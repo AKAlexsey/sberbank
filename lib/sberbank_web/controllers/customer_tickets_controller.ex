@@ -23,6 +23,7 @@ defmodule SberbankWeb.CustomerTicketsController do
   def create(conn, %{"customer_id" => customer_id, "ticket" => ticket_params}) do
     case Customers.create_ticket(ticket_params) do
       {:ok, ticket} ->
+        # TODO move to ticket pubsub
         RabbitClient.initial_push_ticket(ticket)
 
         conn
@@ -54,6 +55,7 @@ defmodule SberbankWeb.CustomerTicketsController do
         |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
 
       {:ok, {ticket, active_operator}} ->
+        # TODO move to ticket pubsub
         OperatorClient.deactivate_ticket(active_operator, ticket.id)
 
         conn
@@ -83,6 +85,7 @@ defmodule SberbankWeb.CustomerTicketsController do
         ticket
         |> Customers.delete_ticket()
 
+        # TODO move to ticket pubsub
         OperatorClient.ticket_removed(active_operator, ticket.id)
 
         conn

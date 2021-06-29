@@ -58,6 +58,7 @@ defmodule Sberbank.Pipeline.RabbitClient do
     GenServer.cast(__MODULE__, {:subscribe_to_operator_queue, operator, process_pid})
   end
 
+  # TODO legacy rewrite to broadcast
   def delete_competence_exchange(competence) do
     GenServer.cast(__MODULE__, {:delete_competence_exchange, competence})
   end
@@ -80,6 +81,9 @@ defmodule Sberbank.Pipeline.RabbitClient do
     {:ok, %{connection: connection, channel: channel}, {:continue, :after_start_functions}}
   end
 
+  # This all callbacks should be here because all of this related to rabbit MQ connection
+  # SO it should be right after running this server successfully
+  # TODO add running all operators that have active tickets
   def handle_continue(:after_start_functions, state) do
     Toolkit.declare_exchanges()
     {:noreply, state}
@@ -99,19 +103,6 @@ defmodule Sberbank.Pipeline.RabbitClient do
   end
 
   def handle_cast(
-        {:declare_exchange, exchange_name},
-        %{channel: channel} = state
-      ) do
-    result = Toolkit.declare_exchange(channel, exchange_name)
-
-    Logger.info(fn ->
-      "#{__MODULE__} Declaring exchange #{exchange_name} result: #{inspect(result, pretty: true)}"
-    end)
-
-    {:noreply, state}
-  end
-
-  def handle_cast(
         {:repeat_push_customer_ticket, %Ticket{id: id, topic: topic} = ticket},
         %{channel: channel} = state
       ) do
@@ -119,6 +110,19 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
     Logger.info(fn ->
       "#{__MODULE__} Push ticket #{id} #{topic}. Result: #{inspect(result, pretty: true)}"
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:declare_exchange, exchange_name},
+        %{channel: channel} = state
+      ) do
+    result = Toolkit.declare_exchange(channel, exchange_name)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Declaring exchange #{exchange_name} result: #{inspect(result, pretty: true)}"
     end)
 
     {:noreply, state}

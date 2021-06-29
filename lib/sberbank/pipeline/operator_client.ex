@@ -15,7 +15,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
   alias Sberbank.Customers.{Ticket, TicketOperator}
   alias Sberbank.{OperatorTicketContext, Staff}
   alias Sberbank.Staff.Employer
-  alias Sberbank.Pipeline.{RabbitClient, Toolkit}
+  alias Sberbank.Pipeline.RabbitClient
   alias Sberbank.Utils
 
   @spec deactivate_ticket(Employer | integer, integer | binary) :: list(map)

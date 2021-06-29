@@ -18,6 +18,7 @@ defmodule SberbankWeb.CompetenceController do
   def create(conn, %{"competence" => competence_params}) do
     case Staff.create_competence(competence_params) do
       {:ok, competence} ->
+        # TODO move to exchanges pubsub
         Toolkit.declare_exchanges()
 
         conn
@@ -45,6 +46,7 @@ defmodule SberbankWeb.CompetenceController do
 
     case Staff.update_competence(competence, competence_params) do
       {:ok, competence} ->
+        # TODO move to exchanges pubsub
         Toolkit.declare_exchanges()
 
         conn
@@ -58,6 +60,7 @@ defmodule SberbankWeb.CompetenceController do
 
   def delete(conn, %{"id" => id}) do
     competence = Staff.get_competence!(id)
+    # TODO move to competence pubsub
     RabbitClient.delete_competence_exchange(competence)
     {:ok, _competence} = Staff.delete_competence(competence)
 
