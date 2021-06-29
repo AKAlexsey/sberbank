@@ -85,6 +85,7 @@ defmodule Sberbank.OperatorTicketContext do
       order_by: [:id]
     )
     |> Repo.all()
+    |> Repo.preload(ticket: :competence)
     |> Enum.map(fn %TicketOperator{ticket: ticket} = ticket_operator ->
       {ticket, ticket_operator}
     end)

@@ -10,67 +10,12 @@ defmodule Sberbank.Pipeline.OperatorClient do
 
   @max_tickets 3
   @check_tickets_interval 500
-  @ticket_requeue_timeout 1000
 
-  alias Sberbank.Customers.{Ticket, TicketOperator}
-  alias Sberbank.{OperatorTicketContext, Staff}
+  alias Sberbank.Customers.Ticket
+  alias Sberbank.{Eventbus, OperatorTicketContext, Staff}
+  alias Sberbank.Pipeline.RabbitClient
   alias Sberbank.Staff.Employer
-  alias Sberbank.Pipeline.{RabbitClient, Toolkit}
   alias Sberbank.Utils
-
-  @spec deactivate_ticket(Employer | integer, integer | binary) :: list(map)
-  def deactivate_ticket(%Employer{} = operator, ticket_id) do
-    operator
-    |> make_server_name()
-    |> GenServer.call({:deactivate_ticket, ticket_id})
-  end
-
-  def deactivate_ticket(operator_id, ticket_id) do
-    Staff.get_employer(operator_id)
-    |> case do
-      nil ->
-        {:error, "Operator with ID: #{operator_id} not found"}
-
-      operator ->
-        deactivate_ticket(operator, ticket_id)
-    end
-  end
-
-  @spec leave_ticket(Employer | integer, integer | binary) :: list(map)
-  def leave_ticket(%Employer{} = operator, ticket_id) do
-    operator
-    |> make_server_name()
-    |> GenServer.call({:leave_ticket, ticket_id})
-  end
-
-  def leave_ticket(operator_id, ticket_id) do
-    Staff.get_employer(operator_id)
-    |> case do
-      nil ->
-        {:error, "Operator with ID: #{operator_id} not found"}
-
-      operator ->
-        leave_ticket(operator, ticket_id)
-    end
-  end
-
-  @spec ticket_removed(Employer | integer, integer | binary) :: :ok | {:error, binary}
-  def ticket_removed(%Employer{} = operator, ticket_id) do
-    operator
-    |> make_server_name()
-    |> GenServer.cast({:ticket_removed, ticket_id})
-  end
-
-  def ticket_removed(operator_id, ticket_id) do
-    Staff.get_employer(operator_id)
-    |> case do
-      nil ->
-        {:error, "Operator with ID: #{operator_id} not found"}
-
-      operator ->
-        ticket_removed(operator, ticket_id)
-    end
-  end
 
   @spec get_active_tickets(Employer.t()) :: list(map)
   def get_active_tickets(%{} = operator) do
@@ -94,7 +39,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
     GenServer.start_link(__MODULE__, params, name: server_name)
   end
 
-  defp make_server_name(%Employer{id: id}) do
+  def make_server_name(%Employer{id: id}) do
     "#{__MODULE__}_#{id}"
     |> String.to_atom()
   end
@@ -102,76 +47,54 @@ defmodule Sberbank.Pipeline.OperatorClient do
   def init(%{operator: operator}) do
     RabbitClient.subscribe_operator_to_exchanges(operator)
     RabbitClient.subscribe_to_operator_queue(operator, self())
+    Eventbus.subscribe_exchanges()
+    Eventbus.subscribe_tickets()
+    Eventbus.subscribe_operator(operator)
     active_tickets = OperatorTicketContext.get_operator_active_tickets(operator)
     check_new_tickets(2000)
+
+    %{competencies: competencies} = Staff.get_employer!(operator.id, [:competencies])
 
     {:ok,
      %{
        operator: operator,
+       competencies: competencies,
        active: true,
        active_tickets: active_tickets,
        tickets_queue: :queue.new()
      }}
   end
 
-  def handle_call(
-        {:deactivate_ticket, ticket_id},
-        _from,
-        %{
-          active_tickets: active_tickets
-        } = state
-      ) do
-    result = OperatorTicketContext.deactivate_ticket(ticket_id)
-
-    Logger.info(fn ->
-      "#{__MODULE__} Error deactivating ticket #{ticket_id}: #{inspect(result)}"
-    end)
-
-    {:reply, result, remove_active_ticket(state, ticket_id)}
+  def handle_call(:get_active_tickets, _from, state) do
+    {:reply, Map.get(state, :active_tickets), state}
   end
 
-  def handle_call(
-        {:leave_ticket, ticket_id},
-        _from,
-        %{
-          operator: operator
-        } = state
-      ) do
-    result = OperatorTicketContext.operator_leaves_ticket(operator, ticket_id)
-
-    if result == :ok do
-      push_ticket_to_exchange(ticket_id)
-    end
-
-    Logger.info(fn ->
-      "#{__MODULE__} Leaving operator #{operator.name} form ticket #{ticket_id} result #{
-        inspect(result)
-      }"
-    end)
-
-    {:reply, :ok, remove_active_ticket(state, ticket_id)}
-  end
-
-  def handle_cast(
-        {:ticket_removed, ticket_id},
-        %{operator: %Employer{name: name}} = state
-      ) do
-    Logger.info(fn ->
-      "#{__MODULE__} Operator #{name} ticket removed with ID: #{ticket_id}"
-    end)
-
+  # Tickets events handlers
+  def handle_info(
+        {:operator_leaves_ticket, %{id: leaves_operator_id}, ticket_id},
+        %{operator: %{id: operator_id}} = state
+      )
+      when leaves_operator_id == operator_id do
     {:noreply, remove_active_ticket(state, ticket_id)}
   end
 
-  defp remove_active_ticket(%{active_tickets: active_tickets} = state, ticket_id) do
-    ticket_id = Utils.safe_to_integer(ticket_id)
-
-    new_active_tickets =
-      Enum.reject(active_tickets, fn {%Ticket{id: id}, _} -> id == ticket_id end)
-
-    %{state | active_tickets: new_active_tickets}
+  def handle_info({:operator_leaves_ticket, _, _}, state) do
+    {:noreply, state}
   end
 
+  def handle_info({:ticket_deleted, %{id: ticket_id}}, state) do
+    {:noreply, remove_active_ticket(state, ticket_id)}
+  end
+
+  def handle_info({:ticket_deactivated, %{id: ticket_id}}, state) do
+    {:noreply, remove_active_ticket(state, ticket_id)}
+  end
+
+  def handle_info({:repeat_push_ticket, _}, state) do
+    {:noreply, state}
+  end
+
+  # RabbitMQ event handlers
   def handle_info(
         {:basic_deliver, encoded_data, %{delivery_tag: delivery_tag}},
         %{tickets_queue: tickets_queue} = state
@@ -192,6 +115,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
     {:noreply, state}
   end
 
+  # Repeating process
   def handle_info(
         :check_new_tickets,
         %{active: true, active_tickets: tickets, operator: operator, tickets_queue: tickets_queue} =
@@ -203,14 +127,16 @@ defmodule Sberbank.Pipeline.OperatorClient do
          {:ok, {ticket, ticket_operator}} <-
            OperatorTicketContext.add_operator_to_ticket(ticket_id, operator) do
       check_new_tickets()
+      new_active_tickets = [{ticket, ticket_operator}] ++ tickets
 
       new_state = %{
         state
-        | active_tickets: [{ticket, ticket_operator}] ++ tickets,
+        | active_tickets: new_active_tickets,
           tickets_queue: new_tickets_queue
       }
 
       RabbitClient.acknowledge_message(delivery_tag)
+      Eventbus.broadcast_operator_tickets_updated(operator, new_active_tickets)
 
       {:noreply, new_state}
     else
@@ -228,7 +154,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
         {{:value, {%{"id" => ticket_id}, delivery_tag}}, new_tickets_queue} =
           :queue.out(tickets_queue)
 
-        push_ticket_to_exchange(ticket_id)
+        Eventbus.broadcast_repeat_push_ticket(ticket_id)
 
         RabbitClient.acknowledge_message(delivery_tag)
 
@@ -246,32 +172,109 @@ defmodule Sberbank.Pipeline.OperatorClient do
     {:noreply, state}
   end
 
+  # Exchanges event handlers
+  def handle_info(
+        {:competence_updated, old_competence, _new_competence},
+        %{operator: operator, competencies: competencies} = state
+      ) do
+    competencies
+    |> Enum.find(fn %{id: competence_id} -> competence_id == old_competence.id end)
+    |> case do
+      nil ->
+        {:noreply, state}
+
+      competence ->
+        RabbitClient.unsubscribe_operator_from_exchange(operator, old_competence)
+        RabbitClient.subscribe_operator_to_exchanges(operator)
+        {:noreply, update_competence(state, competence)}
+    end
+  end
+
+  def handle_info(
+        {:competence_deleted, competence},
+        %{operator: operator, competencies: competencies} = state
+      ) do
+    competencies
+    |> Enum.find(fn %{id: competence_id} -> competence_id == competence.id end)
+    |> case do
+      nil ->
+        {:noreply, state}
+
+      competence ->
+        RabbitClient.unbind_operator_topic(operator, competence)
+        {:noreply, remove_competence(state, competence)}
+    end
+  end
+
+  # Operator event handlers
+  def handle_info(:operator_updated, %{operator: %{id: id}} = state) do
+    updated_operator = Staff.get_employer!(id, [:competencies])
+    %{competencies: refreshed_competencies} = updated_operator
+    RabbitClient.subscribe_operator_to_exchanges(updated_operator)
+    {:noreply, %{state | operator: updated_operator, competencies: refreshed_competencies}}
+  end
+
+  def handle_info({:operator_tickets_updated, _}, state) do
+    {:noreply, state}
+  end
+
+  def handle_info({:initial_push_ticket, _}, state) do
+    {:noreply, state}
+  end
+
   def handle_info(unexpected_handle_info, state) do
     Logger.error(fn ->
-      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}"
+      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}\nState: #{
+        inspect(state, pretty: true)
+      }"
     end)
 
     {:noreply, state}
   end
 
-  def handle_call(:get_active_tickets, _from, state) do
-    {:reply, Map.get(state, :active_tickets), state}
+  # Helper functions
+  defp remove_active_ticket(
+         %{active_tickets: active_tickets, operator: operator} = state,
+         ticket_id
+       ) do
+    ticket_id = Utils.safe_to_integer(ticket_id)
+
+    new_active_tickets =
+      Enum.reject(active_tickets, fn {%Ticket{id: id}, _} -> id == ticket_id end)
+
+    if active_tickets != new_active_tickets do
+      Eventbus.broadcast_operator_tickets_updated(operator, new_active_tickets)
+      %{state | active_tickets: new_active_tickets}
+    else
+      state
+    end
+  end
+
+  defp update_competence(
+         %{competencies: competencies} = state,
+         %{id: updated_id} = updated_competence
+       ) do
+    new_competencies =
+      competencies
+      |> Enum.map(fn
+        %{id: competence_id} when competence_id == updated_id ->
+          updated_competence
+
+        not_updated_competence ->
+          not_updated_competence
+      end)
+
+    %{state | competencies: new_competencies}
+  end
+
+  defp remove_competence(%{competencies: competencies} = state, %{id: removed_id}) do
+    new_competencies =
+      Enum.reject(competencies, fn %{id: competence_id} -> competence_id == removed_id end)
+
+    %{state | competencies: new_competencies}
   end
 
   defp check_new_tickets(check_interval \\ @check_tickets_interval) do
     Process.send_after(self(), :check_new_tickets, check_interval)
-  end
-
-  defp push_ticket_to_exchange(ticket_id) do
-    Task.start(fn ->
-      Process.sleep(@ticket_requeue_timeout)
-      push_ticket_result = RabbitClient.repeat_push_ticket(ticket_id)
-
-      Logger.info(fn ->
-        "#{__MODULE__} Pushing ticket with ID: #{ticket_id} to queue result: #{
-          inspect(push_ticket_result)
-        }"
-      end)
-    end)
   end
 end

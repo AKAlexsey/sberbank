@@ -1,7 +1,7 @@
 defmodule SberbankWeb.EmployerController do
   use SberbankWeb, :controller
 
-  alias Sberbank.Staff
+  alias Sberbank.{Eventbus, Staff}
   alias Sberbank.Staff.Employer
 
   def index(conn, _params) do
@@ -50,6 +50,8 @@ defmodule SberbankWeb.EmployerController do
 
     case Staff.update_employer(employer, update_params) do
       {:ok, employer} ->
+        Eventbus.broadcast_operator_updated(employer)
+
         conn
         |> put_flash(:info, "Employer updated successfully.")
         |> redirect(to: Routes.employer_path(conn, :show, employer))

@@ -1,6 +1,7 @@
 defmodule SberbankWeb.CompetenceController do
   use SberbankWeb, :controller
 
+  alias Sberbank.Eventbus
   alias Sberbank.Pipeline.{RabbitClient, Toolkit}
   alias Sberbank.Staff
   alias Sberbank.Staff.Competence
@@ -18,8 +19,6 @@ defmodule SberbankWeb.CompetenceController do
   def create(conn, %{"competence" => competence_params}) do
     case Staff.create_competence(competence_params) do
       {:ok, competence} ->
-        Toolkit.declare_exchanges()
-
         conn
         |> put_flash(:info, "Competence created successfully.")
         |> redirect(to: Routes.competence_path(conn, :show, competence))
@@ -41,25 +40,25 @@ defmodule SberbankWeb.CompetenceController do
   end
 
   def update(conn, %{"id" => id, "competence" => competence_params}) do
-    competence = Staff.get_competence!(id)
+    old_competence = Staff.get_competence!(id)
 
-    case Staff.update_competence(competence, competence_params) do
-      {:ok, competence} ->
-        Toolkit.declare_exchanges()
+    case Staff.update_competence(old_competence, competence_params) do
+      {:ok, updated_competence} ->
+        Eventbus.broadcast_competence_updated(old_competence, updated_competence)
 
         conn
         |> put_flash(:info, "Competence updated successfully.")
-        |> redirect(to: Routes.competence_path(conn, :show, competence))
+        |> redirect(to: Routes.competence_path(conn, :show, updated_competence))
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "edit.html", competence: competence, changeset: changeset)
+        render(conn, "edit.html", competence: old_competence, changeset: changeset)
     end
   end
 
   def delete(conn, %{"id" => id}) do
     competence = Staff.get_competence!(id)
-    RabbitClient.delete_competence_exchange(competence)
     {:ok, _competence} = Staff.delete_competence(competence)
+    Eventbus.broadcast_competence_deleted(competence)
 
     conn
     |> put_flash(:info, "Competence deleted successfully.")
