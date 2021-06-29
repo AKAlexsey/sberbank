@@ -22,7 +22,8 @@ defmodule Sberbank.OperatorTicketContext do
   @spec add_operator_to_ticket(binary, Employer.t()) ::
           {:ok, {Ticket.t(), TicketOperator.t()}} | {:error, binary} | {:error, :try_later}
   def add_operator_to_ticket(ticket_id, %Employer{id: operator_id}) do
-    with ticket when not is_nil(ticket) <- Customers.get_ticket(ticket_id, [:operators]),
+    with ticket when not is_nil(ticket) <-
+           Customers.get_ticket(ticket_id, [:operators, :competence]),
          :ok <- operator_did_not_left_ticket_recently?(ticket, operator_id),
          {:ok, ticket_operator} <-
            Customers.create_ticket_operator(%{

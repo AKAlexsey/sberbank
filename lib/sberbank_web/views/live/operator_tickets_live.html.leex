@@ -2,40 +2,64 @@
   <h1>Operator <%= @operator.name %> page</h1>
 </section>
 <section class="container">
+  <h2>Operator competences</h2>
+  <table class="table table-striped">
+    <%= for competence <- @competences do %>
+      <tr>
+        <td><%= competence.letter %></td>
+        <td><%= competence.name %></td>
+      </tr>
+    <% end %>
+  </table>
+</section>
+<section class="container">
   <%= if @current_tickets == [] do %>
     <h2>No active tickets now</h2>
   <% else %>
-    <ul>
-      <%= for ticket <- @current_tickets do %>
-        <li>
-          <td>
-            <span class="badge badge-success"><%= ticket.id %></span>
-          </td>
-          <td>
-            <span class="btn btn-primary"><%= ticket.topic %></span>
-          </td>
-          <td>
-            Here will be the chat
-          </td>
-          <td>
-            <button
-                    phx-click="leave_ticket"
-                    phx-value-ticket-id="<%= ticket.id %>"
-                    class="btn btn-outline-danger"
-                    data-confirm="Are y">
-              Leave
-            </button>
-            <button
-                    phx-click="deactivate_ticket"
-                    phx-value-ticket-id="<%= ticket.id %>"
-                    class="btn btn-danger"
-                    data-confirm="Are you sure you want to close ticket">
-              Close
-            </button>
-          </td>
-        </li>
-      <% end %>
-    </ul>
+    <h2>Operator tickets</h2>
+    <table class="table table-bordered table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Topic</th>
+          <th>Competence</th>
+          <th>Chat</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <%= for ticket <- @current_tickets do %>
+          <tr>
+            <th>
+              <span class="badge badge-success"><%= ticket.id %></span>
+            </th>
+            <td><%= ticket.topic %></td>
+            <td>
+              <span class="badge badge-info"><%= ticket.competence.name %></span>
+            </td>
+            <td>
+              <%= "<Here will be the chat>" %>
+            </td>
+            <td>
+              <button
+                      phx-click="leave_ticket"
+                      phx-value-ticket-id="<%= ticket.id %>"
+                      class="btn btn-outline-danger"
+                      data-confirm="Are your sure want to leave the ticket?">
+                Leave
+              </button>
+              <button
+                      phx-click="deactivate_ticket"
+                      phx-value-ticket-id="<%= ticket.id %>"
+                      class="btn btn-danger"
+                      data-confirm="Are you sure you want to close the ticket?">
+                Close
+              </button>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
   <% end %>
 </section>
 <section class="container mt-2">
