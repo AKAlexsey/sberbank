@@ -255,28 +255,37 @@ defmodule Sberbank.Pipeline.OperatorClient do
     {:noreply, state}
   end
 
-  def handle_info({:competence_updated, competence}, %{operator: operator, competencies: competencies} = state) do
+  def handle_info(
+        {:competence_updated, old_competence, new_competence},
+        %{operator: operator, competencies: competencies} = state
+      ) do
     competencies
-    |> Enum.find(fn %{id: competence_id} -> competence_id == competence.id end)
+    |> Enum.find(fn %{id: competence_id} -> competence_id == old_competence.id end)
     |> case do
       nil ->
         {:noreply, state}
+
       competence ->
+        RabbitClient.unsubscribe_operator_from_exchange(operator, old_competence)
         RabbitClient.subscribe_operator_to_exchanges(operator)
         {:noreply, update_competence(state, competence)}
-       end
+    end
   end
 
-  def handle_info({:competence_deleted, competence}, %{operator: operator, competencies: competencies} = state) do
+  def handle_info(
+        {:competence_deleted, competence},
+        %{operator: operator, competencies: competencies} = state
+      ) do
     competencies
     |> Enum.find(fn %{id: competence_id} -> competence_id == competence.id end)
     |> case do
       nil ->
         {:noreply, state}
+
       competence ->
         RabbitClient.unbind_operator_topic(operator, competence)
         {:noreply, remove_competence(state, competence)}
-       end
+    end
   end
 
   def handle_info({:operator_updated, updated_operator_id}, %{operator: %{id: id}} = state) do
@@ -288,20 +297,27 @@ defmodule Sberbank.Pipeline.OperatorClient do
 
   def handle_info(unexpected_handle_info, state) do
     Logger.error(fn ->
-      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}\nState: #{inspect(state, pretty: true)}"
+      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}\nState: #{
+        inspect(state, pretty: true)
+      }"
     end)
 
     {:noreply, state}
   end
 
-  defp update_competence(%{competencies: competencies} = state, %{id: updated_id} = updated_competence) do
-    new_competencies = competencies
+  defp update_competence(
+         %{competencies: competencies} = state,
+         %{id: updated_id} = updated_competence
+       ) do
+    new_competencies =
+      competencies
       |> Enum.map(fn
-      %{id: competence_id} when competence_id == updated_id ->
-        updated_competence
-      not_updated_competence ->
-        not_updated_competence
-    end)
+        %{id: competence_id} when competence_id == updated_id ->
+          updated_competence
+
+        not_updated_competence ->
+          not_updated_competence
+      end)
 
     %{state | competencies: new_competencies}
   end

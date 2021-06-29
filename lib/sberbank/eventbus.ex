@@ -38,12 +38,12 @@ defmodule Sberbank.Eventbus do
   end
 
   # Exchanges API
-  def broadcast_competence_deleted(%Competence{} = competence) do
-    broadcast_exchanges({:competence_deleted, competence})
+  def broadcast_competence_updated(%Competence{} = old_competence, %Competence{} = new_competence) do
+    broadcast_exchanges({:competence_updated, old_competence, new_competence})
   end
 
-  def broadcast_competence_updated(%Competence{} = competence) do
-    broadcast_exchanges({:competence_updated, competence})
+  def broadcast_competence_deleted(%Competence{} = competence) do
+    broadcast_exchanges({:competence_deleted, competence})
   end
 
   # Employer API
@@ -59,5 +59,5 @@ defmodule Sberbank.Eventbus do
     |> broadcast({:operator_updated, operator_id})
   end
 
-  defp operator_topic(%Employer{id: id}), do: "operator:#{id}"  
+  defp operator_topic(%Employer{id: id}), do: "operator:#{id}"
 end

@@ -9,7 +9,7 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
   alias Sberbank.Customers
   alias Sberbank.Customers.Ticket
-  alias Sberbank.Staff.Employer
+  alias Sberbank.Staff.{Competence, Employer}
   alias Sberbank.Pipeline.Toolkit
 
   def initial_push_ticket(ticket_id) when is_integer(ticket_id) or is_binary(ticket_id) do
@@ -52,6 +52,10 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
   def unbind_operator_topic(operator, competence) do
     GenServer.cast(__MODULE__, {:unbind_operator_topic, operator, competence})
+  end
+
+  def unsubscribe_operator_from_exchange(%Employer{} = operator, %Competence{} = competence) do
+    GenServer.cast(__MODULE__, {:unsubscribe_operator_from_exchange, operator, competence})
   end
 
   def subscribe_operator_to_exchanges(%Employer{} = operator) do
@@ -135,6 +139,22 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
     Logger.info(fn ->
       "#{__MODULE__} Unbinding operator #{operator.name} result: #{inspect(result, pretty: true)}"
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:unsubscribe_operator_from_exchange, %Employer{id: id, name: name} = operator,
+         %Competence{} = competence},
+        %{channel: channel} = state
+      ) do
+    result = Toolkit.unbind_operator_topic(channel, operator, competence)
+
+    Logger.info(fn ->
+      "#{__MODULE__} Operator #{id} #{name} unsubscribed from changed competence result: #{
+        inspect(result, pretty: true)
+      }"
     end)
 
     {:noreply, state}

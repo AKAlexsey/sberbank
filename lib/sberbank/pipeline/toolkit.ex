@@ -64,7 +64,7 @@ defmodule Sberbank.Pipeline.Toolkit do
     AMQP.Exchange.topic(channel, exchange_name, Keyword.merge(default_opts, opts))
   end
 
-  @spec unbind_operator_topic(map, Employer.t, Competence.t) :: {:ok, map} | {:error, atom}
+  @spec unbind_operator_topic(map, Employer.t(), Competence.t()) :: {:ok, map} | {:error, atom}
   def unbind_operator_topic(channel, %Employer{} = operator, %Competence{} = competence) do
     queue_name = get_operator_queue_name(operator)
 

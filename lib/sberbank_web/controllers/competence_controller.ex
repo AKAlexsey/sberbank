@@ -43,19 +43,18 @@ defmodule SberbankWeb.CompetenceController do
   end
 
   def update(conn, %{"id" => id, "competence" => competence_params}) do
-    competence = Staff.get_competence!(id)
+    old_competence = Staff.get_competence!(id)
 
-    case Staff.update_competence(competence, competence_params) do
-      {:ok, competence} ->
-        # TODO move to exchanges pubsub
-        Toolkit.declare_exchanges()
+    case Staff.update_competence(old_competence, competence_params) do
+      {:ok, updated_competence} ->
+        Eventbus.broadcast_competence_updated(old_competence, updated_competence)
 
         conn
         |> put_flash(:info, "Competence updated successfully.")
-        |> redirect(to: Routes.competence_path(conn, :show, competence))
+        |> redirect(to: Routes.competence_path(conn, :show, updated_competence))
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "edit.html", competence: competence, changeset: changeset)
+        render(conn, "edit.html", competence: old_competence, changeset: changeset)
     end
   end
 

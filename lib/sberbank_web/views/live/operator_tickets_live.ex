@@ -7,8 +7,9 @@ defmodule SberbankWeb.OperatorTicketsLive do
   @refresh_interval 500
 
   def mount(%{"employer_id" => employer_id}, session, socket) do
-    operator = Staff.get_employer!(employer_id, [:competencies])
+    operator = Staff.get_employer!(employer_id)
 
+    Eventbus.subscribe_exchanges()
     Eventbus.subscribe_operator(operator)
 
     OperatorDynamicSupervisor.start_for_operator(operator)
@@ -21,29 +22,27 @@ defmodule SberbankWeb.OperatorTicketsLive do
         nil
     end
 
-    competences = operator.competencies
-
     assigned_socket =
       socket
       |> assign(:operator, operator)
-      |> assign(:competences, Enum.map(operator.competencies, &Map.from_struct/1))
       |> assign_socket_data()
 
     {:ok, assigned_socket}
   end
 
-  def handle_info({:operator_updated, updated_operator_id}, socket) do
-    operator = Staff.get_employer!(updated_operator_id, [:competencies])
-    updated_socket =
-      socket
-      |> assign(:operator, operator)
-      |> assign(:competences, Enum.map(operator.competencies, &Map.from_struct/1))
-      |> assign_socket_data()
-
-    {:noreply, updated_socket}
+  def handle_info({:competence_updated, _old_competence, _new_competence}, socket) do
+    {:noreply, assign_socket_data(socket)}
   end
 
-  def handle_info(:render, socket) do
+  def handle_info({:competence_deleted, _competence}, socket) do
+    {:noreply, assign_socket_data(socket)}
+  end
+
+  def handle_info({:operator_updated, _updated_operator_id}, socket) do
+    {:noreply, assign_socket_data(socket)}
+  end
+
+  def handle_info(:render, %{} = socket) do
     {:noreply, assign_socket_data(socket)}
   end
 
@@ -71,11 +70,15 @@ defmodule SberbankWeb.OperatorTicketsLive do
     {:noreply, assign_socket_data(socket)}
   end
 
-  defp assign_socket_data(%{assigns: %{operator: operator}} = socket) do
+  defp assign_socket_data(%{assigns: %{operator: %{id: operator_id}}} = socket) do
+    operator = Staff.get_employer!(operator_id, [:competencies])
     tickets = OperatorClient.get_active_tickets(operator)
     current_tickets = Enum.map(tickets, fn {ticket, _} -> ticket end)
+    %{competencies: competencies} = operator
 
     socket
+    |> assign(:operator, operator)
+    |> assign(:competencies, Enum.map(competencies, &Map.from_struct/1))
     |> assign(:current_tickets, current_tickets)
   end
 end
