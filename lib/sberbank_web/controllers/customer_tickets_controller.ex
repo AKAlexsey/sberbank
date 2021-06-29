@@ -3,8 +3,6 @@ defmodule SberbankWeb.CustomerTicketsController do
 
   alias Sberbank.{Customers, Eventbus, Staff}
   alias Sberbank.Customers.Ticket
-  alias Sberbank.OperatorTicketContext
-  alias Sberbank.Pipeline.{OperatorClient, RabbitClient}
 
   def index(conn, %{"customer_id" => customer_id}) do
     %{customer: customer, tickets: tickets, competences: competences} =
@@ -23,8 +21,7 @@ defmodule SberbankWeb.CustomerTicketsController do
   def create(conn, %{"customer_id" => customer_id, "ticket" => ticket_params}) do
     case Customers.create_ticket(ticket_params) do
       {:ok, ticket} ->
-        # TODO move to ticket pubsub
-        RabbitClient.initial_push_ticket(ticket)
+        Eventbus.broadcast_initial_push_ticket(ticket)
 
         conn
         |> put_flash(:info, "Ticket created successfully")

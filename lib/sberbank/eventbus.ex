@@ -6,6 +6,7 @@ defmodule Sberbank.Eventbus do
   The place where any event happens - does not need to perform any additional actions, live finding subscribers.
   """
 
+  alias Sberbank.Customers
   alias Sberbank.Customers.Ticket
   alias Sberbank.Staff.{Competence, Employer}
 
@@ -46,7 +47,7 @@ defmodule Sberbank.Eventbus do
     |> subscribe()
   end
 
-  def broadcast_operator_updated(%Employer{id: operator_id} = operator) do
+  def broadcast_operator_updated(%Employer{} = operator) do
     operator
     |> operator_topic()
     |> broadcast(:operator_updated)
@@ -73,7 +74,31 @@ defmodule Sberbank.Eventbus do
     broadcast_tickets({:ticket_deactivated, ticket})
   end
 
+  def broadcast_ticket_deactivated(ticket_id) do
+    ticket_id
+    |> Customers.get_ticket()
+    |> broadcast_ticket_deactivated()
+  end
+
   def broadcast_ticket_deleted(%Ticket{} = ticket) do
     broadcast_tickets({:ticket_deleted, ticket})
+  end
+
+  def broadcast_operator_leaves_ticket(%Employer{} = operator, ticket_id) do
+    broadcast_tickets({:operator_leaves_ticket, operator, ticket_id})
+  end
+
+  def broadcast_initial_push_ticket(%Ticket{} = ticket) do
+    broadcast_tickets({:initial_push_ticket, ticket})
+  end
+
+  def broadcast_initial_push_ticket(ticket_id) do
+    ticket_id
+    |> Customers.get_ticket()
+    |> broadcast_initial_push_ticket()
+  end
+
+  def broadcast_repeat_push_ticket(ticket_id) do
+    broadcast_tickets({:repeat_push_ticket, ticket_id})
   end
 end

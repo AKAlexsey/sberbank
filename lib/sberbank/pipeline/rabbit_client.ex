@@ -70,10 +70,6 @@ defmodule Sberbank.Pipeline.RabbitClient do
     GenServer.cast(__MODULE__, {:acknowledge_message, delivery_tag})
   end
 
-  def fetch_ticket_for_operator(operator) do
-    GenServer.call(__MODULE__, {:fetch_ticket_for_operator, operator})
-  end
-
   # Users API
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -199,35 +195,6 @@ defmodule Sberbank.Pipeline.RabbitClient do
     end)
 
     {:noreply, state}
-  end
-
-  def handle_call(
-        {:fetch_ticket_for_operator, %Employer{id: id, name: name} = operator},
-        _from,
-        %{channel: channel} = state
-      ) do
-    channel
-    |> Toolkit.fetch_ticket_for_operator(operator)
-    |> case do
-      {:ok, %Ticket{id: ticket_id, topic: topic} = ticket} ->
-        Logger.info(fn ->
-          "#{__MODULE__} Fetched Ticket with id: #{ticket_id} and topic #{topic} for Operator: #{
-            id
-          } #{name}."
-        end)
-
-        {:reply, {:ok, ticket}, state}
-
-      {:ok, :no_ticket} ->
-        {:reply, {:ok, :no_ticket}, state}
-
-      {:error, reason} ->
-        Logger.error(fn ->
-          "#{__MODULE__} Error fetching data for for Operator: #{id} #{name}: #{reason}"
-        end)
-
-        {:reply, {:error, reason}, state}
-    end
   end
 
   def handle_info({:basic_deliver, _, _}, state) do

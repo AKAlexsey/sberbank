@@ -8,6 +8,7 @@ defmodule Sberbank.Pipeline.Toolkit do
   alias Sberbank.Pipeline.RabbitClient
   alias Sberbank.Staff
   alias Sberbank.Staff.{Competence, Employer}
+  alias Sberbank.Pipeline.OperatorClient
 
   @spec subscribe_operator_to_exchanges(map, Employer.t()) :: :ok | {:error, binary}
   def subscribe_operator_to_exchanges(channel, %Employer{id: id}) do
@@ -123,26 +124,5 @@ defmodule Sberbank.Pipeline.Toolkit do
   @spec acknowledge_message(map, integer, list) :: :ok | {:error, reason :: :blocked | :closing}
   def acknowledge_message(channel, delivery_tag, opts \\ []) do
     AMQP.Basic.ack(channel, delivery_tag, opts)
-  end
-
-  @spec fetch_ticket_for_operator(map, Competence.t()) ::
-          {:ok, map} | {:ok, :no_ticket} | {:error, binary}
-  def fetch_ticket_for_operator(channel, %Employer{} = operator) do
-    queue_name = get_operator_queue_name(operator)
-
-    with {:basic_deliver, json_ticket_data} <- AMQP.Basic.consume(channel, queue_name),
-         {:ok, %{"id" => ticket_id}} <- Jason.decode(json_ticket_data),
-         {:ok, ticket} <- Customers.get_ticket(ticket_id) do
-      {:ok, ticket}
-    else
-      {:error, %Jason.DecodeError{} = error} ->
-        {:error, Jason.DecodeError.message(error)}
-
-      {:basic_consume_ok, _} ->
-        {:ok, :no_ticket}
-
-      unexpected_error ->
-        {:error, inspect(unexpected_error, pretty: true)}
-    end
   end
 end

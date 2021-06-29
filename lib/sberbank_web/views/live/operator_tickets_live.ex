@@ -1,12 +1,10 @@
 defmodule SberbankWeb.OperatorTicketsLive do
   use SberbankWeb, :live_view
 
-  alias Sberbank.{Eventbus, Staff}
+  alias Sberbank.{Eventbus, Staff, Utils}
   alias Sberbank.Pipeline.{OperatorClient, OperatorDynamicSupervisor, RabbitClient}
 
-  @refresh_interval 500
-
-  def mount(%{"employer_id" => employer_id}, session, socket) do
+  def mount(%{"employer_id" => employer_id}, _session, socket) do
     operator = Staff.get_employer!(employer_id)
 
     Eventbus.subscribe_exchanges()
@@ -15,7 +13,6 @@ defmodule SberbankWeb.OperatorTicketsLive do
     OperatorDynamicSupervisor.start_for_operator(operator)
     |> case do
       {:error, {:already_started, _}} ->
-        # TODO move action to operator client
         RabbitClient.subscribe_operator_to_exchanges(operator)
 
       _ ->
@@ -54,21 +51,12 @@ defmodule SberbankWeb.OperatorTicketsLive do
     {:noreply, updated_socket}
   end
 
-  def handle_info(:render, %{} = socket) do
-    {:noreply, assign_socket_data(socket)}
-  end
-
-  defp render_after(time_interval \\ @refresh_interval) do
-    Process.send_after(self(), :render, time_interval)
-  end
-
   def handle_event(
         "leave_ticket",
         %{"ticket-id" => ticket_id},
         %{assigns: %{operator: operator}} = socket
       ) do
-    # TODO legacy rewrite to broadcast
-    OperatorClient.leave_ticket(operator, ticket_id)
+    Eventbus.broadcast_operator_leaves_ticket(operator, Utils.safe_to_integer(ticket_id))
     {:noreply, assign_socket_data(socket)}
   end
 
@@ -77,7 +65,6 @@ defmodule SberbankWeb.OperatorTicketsLive do
         %{"ticket-id" => ticket_id},
         socket
       ) do
-    # TODO legacy rewrite to broadcast
     Eventbus.broadcast_ticket_deactivated(ticket_id)
     {:noreply, assign_socket_data(socket)}
   end
