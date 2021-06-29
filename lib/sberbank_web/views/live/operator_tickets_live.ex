@@ -75,10 +75,10 @@ defmodule SberbankWeb.OperatorTicketsLive do
   def handle_event(
         "deactivate_ticket",
         %{"ticket-id" => ticket_id},
-        %{assigns: %{operator: operator}} = socket
+        socket
       ) do
     # TODO legacy rewrite to broadcast
-    OperatorClient.deactivate_ticket(operator, ticket_id)
+    Eventbus.broadcast_ticket_deactivated(ticket_id)
     {:noreply, assign_socket_data(socket)}
   end
 

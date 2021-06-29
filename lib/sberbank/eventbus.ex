@@ -76,8 +76,4 @@ defmodule Sberbank.Eventbus do
   def broadcast_ticket_deleted(%Ticket{} = ticket) do
     broadcast_tickets({:ticket_deleted, ticket})
   end
-
-  def broadcast_operator_left_ticket(%Employer{} = operator, %Ticket{} = ticket) do
-    broadcast_tickets({:broadcast_operator_left_ticket, operator, ticket})
-  end
 end

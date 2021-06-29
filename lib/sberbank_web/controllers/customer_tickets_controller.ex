@@ -45,26 +45,18 @@ defmodule SberbankWeb.CustomerTicketsController do
 
   def update(conn, %{"customer_id" => customer_id, "id" => ticket_id}) do
     ticket_id
-    |> OperatorTicketContext.get_ticket_with_active_operator()
+    |> Customers.get_ticket()
     |> case do
-      {:ok, {ticket, nil}} ->
-        OperatorTicketContext.deactivate_ticket(ticket)
+      nil ->
+        conn
+        |> put_flash(:error, "Ticket with ID: #{ticket_id} does not exist")
+        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
+
+      ticket ->
+        Eventbus.broadcast_ticket_deactivated(ticket)
 
         conn
         |> put_flash(:info, "Ticket deactivated")
-        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
-
-      {:ok, {ticket, active_operator}} ->
-        # TODO move to ticket pubsub
-        OperatorClient.deactivate_ticket(active_operator, ticket.id)
-
-        conn
-        |> put_flash(:info, "Ticket deactivated. Operator notified")
-        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
-
-      {:error, reason} ->
-        conn
-        |> put_flash(:error, reason)
         |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
     end
   end

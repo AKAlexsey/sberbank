@@ -18,24 +18,6 @@ defmodule Sberbank.Pipeline.OperatorClient do
   alias Sberbank.Pipeline.RabbitClient
   alias Sberbank.Utils
 
-  @spec deactivate_ticket(Employer | integer, integer | binary) :: list(map)
-  def deactivate_ticket(%Employer{} = operator, ticket_id) do
-    operator
-    |> make_server_name()
-    |> GenServer.call({:deactivate_ticket, ticket_id})
-  end
-
-  def deactivate_ticket(operator_id, ticket_id) do
-    Staff.get_employer(operator_id)
-    |> case do
-      nil ->
-        {:error, "Operator with ID: #{operator_id} not found"}
-
-      operator ->
-        deactivate_ticket(operator, ticket_id)
-    end
-  end
-
   @spec leave_ticket(Employer | integer, integer | binary) :: list(map)
   def leave_ticket(%Employer{} = operator, ticket_id) do
     operator
@@ -103,22 +85,6 @@ defmodule Sberbank.Pipeline.OperatorClient do
   end
 
   def handle_call(
-        {:deactivate_ticket, ticket_id},
-        _from,
-        %{
-          active_tickets: active_tickets
-        } = state
-      ) do
-    result = OperatorTicketContext.deactivate_ticket(ticket_id)
-
-    Logger.info(fn ->
-      "#{__MODULE__} Error deactivating ticket #{ticket_id}: #{inspect(result)}"
-    end)
-
-    {:reply, result, remove_active_ticket(state, ticket_id)}
-  end
-
-  def handle_call(
         {:leave_ticket, ticket_id},
         _from,
         %{
@@ -148,10 +114,13 @@ defmodule Sberbank.Pipeline.OperatorClient do
         {:ticket_deleted, %{id: ticket_id}},
         %{operator: %Employer{name: name}} = state
       ) do
-    Logger.info(fn ->
-      "#{__MODULE__} Operator #{name} ticket removed with ID: #{ticket_id}"
-    end)
+    {:noreply, remove_active_ticket(state, ticket_id)}
+  end
 
+  def handle_info(
+        {:ticket_deactivated, %{id: ticket_id}},
+        %{operator: %Employer{name: name}} = state
+      ) do
     {:noreply, remove_active_ticket(state, ticket_id)}
   end
 

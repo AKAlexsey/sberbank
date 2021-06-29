@@ -112,7 +112,6 @@ defmodule Sberbank.OperatorTicketContext do
     end
   end
 
-  # TODO will be legacy after adding pubsub
   @spec get_ticket_with_active_operator(integer | binary) ::
           {:ok, {Ticket.t(), Employer.t() | nil}} | {:error, binary}
   def get_ticket_with_active_operator(ticket_id) do
