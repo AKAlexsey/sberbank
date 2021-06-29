@@ -6,11 +6,12 @@ defmodule Sberbank.Eventbus do
   The place where any event happens - does not need to perform any additional actions, live finding subscribers.
   """
 
+  alias Sberbank.Customers.Ticket
   alias Sberbank.Staff.{Competence, Employer}
 
   @pubsub_server Sberbank.PubSub
   @exchanges_bus "exchanges"
-  @topics_bus "topics"
+  @tickets_bus "tickets"
 
   # Common API
   def subscribe(topic) do
@@ -21,23 +22,15 @@ defmodule Sberbank.Eventbus do
     Phoenix.PubSub.broadcast(@pubsub_server, topic, message)
   end
 
+  # Exchanges API
   def subscribe_exchanges do
     subscribe(@exchanges_bus)
-  end
-
-  def subscribe_topics do
-    subscribe(@topics_bus)
   end
 
   def broadcast_exchanges(message) do
     broadcast(@exchanges_bus, message)
   end
 
-  def broadcast_topics(message) do
-    broadcast(@topics_bus, message)
-  end
-
-  # Exchanges API
   def broadcast_competence_updated(%Competence{} = old_competence, %Competence{} = new_competence) do
     broadcast_exchanges({:competence_updated, old_competence, new_competence})
   end
@@ -66,4 +59,25 @@ defmodule Sberbank.Eventbus do
   end
 
   defp operator_topic(%Employer{id: id}), do: "operator:#{id}"
+
+  # Tickets API
+  def subscribe_tickets do
+    subscribe(@tickets_bus)
+  end
+
+  def broadcast_tickets(message) do
+    broadcast(@tickets_bus, message)
+  end
+
+  def broadcast_ticket_deactivated(%Ticket{} = ticket) do
+    broadcast_tickets({:ticket_deactivated, ticket})
+  end
+
+  def broadcast_ticket_deleted(%Ticket{} = ticket) do
+    broadcast_tickets({:ticket_deleted, ticket})
+  end
+
+  def broadcast_operator_left_ticket(%Employer{} = operator, %Ticket{} = ticket) do
+    broadcast_tickets({:broadcast_operator_left_ticket, operator, ticket})
+  end
 end

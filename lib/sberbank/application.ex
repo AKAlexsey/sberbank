@@ -19,7 +19,8 @@ defmodule Sberbank.Application do
       # {Sberbank.Worker, arg}
       {DynamicSupervisor,
        name: Sberbank.Pipeline.OperatorDynamicSupervisor, strategy: :one_for_one},
-      Sberbank.Pipeline.RabbitClient
+      Sberbank.Pipeline.RabbitClient,
+      Sberbank.Pipeline.TicketsWorker
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

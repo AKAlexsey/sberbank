@@ -54,24 +54,6 @@ defmodule Sberbank.Pipeline.OperatorClient do
     end
   end
 
-  @spec ticket_removed(Employer | integer, integer | binary) :: :ok | {:error, binary}
-  def ticket_removed(%Employer{} = operator, ticket_id) do
-    operator
-    |> make_server_name()
-    |> GenServer.cast({:ticket_removed, ticket_id})
-  end
-
-  def ticket_removed(operator_id, ticket_id) do
-    Staff.get_employer(operator_id)
-    |> case do
-      nil ->
-        {:error, "Operator with ID: #{operator_id} not found"}
-
-      operator ->
-        ticket_removed(operator, ticket_id)
-    end
-  end
-
   @spec get_active_tickets(Employer.t()) :: list(map)
   def get_active_tickets(%{} = operator) do
     server_name = make_server_name(operator)
@@ -103,6 +85,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
     RabbitClient.subscribe_operator_to_exchanges(operator)
     RabbitClient.subscribe_to_operator_queue(operator, self())
     Eventbus.subscribe_exchanges()
+    Eventbus.subscribe_tickets()
     Eventbus.subscribe_operator(operator)
     active_tickets = OperatorTicketContext.get_operator_active_tickets(operator)
     check_new_tickets(2000)
@@ -161,8 +144,8 @@ defmodule Sberbank.Pipeline.OperatorClient do
     {:reply, Map.get(state, :active_tickets), state}
   end
 
-  def handle_cast(
-        {:ticket_removed, ticket_id},
+  def handle_info(
+        {:ticket_deleted, %{id: ticket_id}},
         %{operator: %Employer{name: name}} = state
       ) do
     Logger.info(fn ->
@@ -172,13 +155,21 @@ defmodule Sberbank.Pipeline.OperatorClient do
     {:noreply, remove_active_ticket(state, ticket_id)}
   end
 
-  defp remove_active_ticket(%{active_tickets: active_tickets} = state, ticket_id) do
+  defp remove_active_ticket(
+         %{active_tickets: active_tickets, operator: operator} = state,
+         ticket_id
+       ) do
     ticket_id = Utils.safe_to_integer(ticket_id)
 
     new_active_tickets =
       Enum.reject(active_tickets, fn {%Ticket{id: id}, _} -> id == ticket_id end)
 
-    %{state | active_tickets: new_active_tickets}
+    if active_tickets != new_active_tickets do
+      Eventbus.broadcast_operator_tickets_updated(operator, new_active_tickets)
+      %{state | active_tickets: new_active_tickets}
+    else
+      state
+    end
   end
 
   def handle_info(

@@ -19,9 +19,6 @@ defmodule SberbankWeb.CompetenceController do
   def create(conn, %{"competence" => competence_params}) do
     case Staff.create_competence(competence_params) do
       {:ok, competence} ->
-        # TODO move to exchanges pubsub
-        Toolkit.declare_exchanges()
-
         conn
         |> put_flash(:info, "Competence created successfully.")
         |> redirect(to: Routes.competence_path(conn, :show, competence))

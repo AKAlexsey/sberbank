@@ -1,7 +1,7 @@
 defmodule SberbankWeb.CustomerTicketsController do
   use SberbankWeb, :controller
 
-  alias Sberbank.{Customers, Staff}
+  alias Sberbank.{Customers, Eventbus, Staff}
   alias Sberbank.Customers.Ticket
   alias Sberbank.OperatorTicketContext
   alias Sberbank.Pipeline.{OperatorClient, RabbitClient}
@@ -71,30 +71,21 @@ defmodule SberbankWeb.CustomerTicketsController do
 
   def delete(conn, %{"customer_id" => customer_id, "id" => ticket_id}) do
     ticket_id
-    |> OperatorTicketContext.get_ticket_with_active_operator()
+    |> Customers.get_ticket()
     |> case do
-      {:ok, {ticket, nil}} ->
+      nil ->
+        conn
+        |> put_flash(:error, "Ticket with ID: #{ticket_id} does not exist")
+        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
+
+      ticket ->
         ticket
         |> Customers.delete_ticket()
+
+        Eventbus.broadcast_ticket_deleted(ticket)
 
         conn
         |> put_flash(:info, "Ticket deleted successfully")
-        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
-
-      {:ok, {ticket, active_operator}} ->
-        ticket
-        |> Customers.delete_ticket()
-
-        # TODO move to ticket pubsub
-        OperatorClient.ticket_removed(active_operator, ticket.id)
-
-        conn
-        |> put_flash(:info, "Ticket deleted successfully. Operator notified")
-        |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
-
-      {:error, reason} ->
-        conn
-        |> put_flash(:error, reason)
         |> redirect(to: Routes.customer_customer_tickets_path(conn, :index, customer_id))
     end
   end
