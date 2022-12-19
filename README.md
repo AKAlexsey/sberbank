@@ -1,3 +1,25 @@
+# Setup the project
+
+Setup Elixir application
+
+```bash
+mix setup
+```
+
+Run related service in separated germinal
+
+```
+docker-compose up
+```
+
+Run server
+
+```
+mix phx.server
+```
+
+Now you can visit http://localhost:4000/
+
 # Sberbank
 
 To start your Phoenix server:

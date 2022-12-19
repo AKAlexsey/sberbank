@@ -24,9 +24,7 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
   def initial_push_ticket(unexpected_argument) do
     {:error,
-     "Unexpected argument. Expected #{inspect(Ticket)}, integer or binary, given: #{
-       unexpected_argument
-     }"}
+     "Unexpected argument. Expected #{inspect(Ticket)}, integer or binary, given: #{unexpected_argument}"}
   end
 
   def repeat_push_ticket(ticket_id) when is_integer(ticket_id) or is_binary(ticket_id) do
@@ -41,9 +39,7 @@ defmodule Sberbank.Pipeline.RabbitClient do
 
   def repeat_push_ticket(unexpected_argument) do
     {:error,
-     "Unexpected argument. Expected #{inspect(Ticket)}, integer or binary, given: #{
-       unexpected_argument
-     }"}
+     "Unexpected argument. Expected #{inspect(Ticket)}, integer or binary, given: #{unexpected_argument}"}
   end
 
   def declare_exchange(exchange_name) do
@@ -148,9 +144,7 @@ defmodule Sberbank.Pipeline.RabbitClient do
     result = Toolkit.unbind_operator_topic(channel, operator, competence)
 
     Logger.info(fn ->
-      "#{__MODULE__} Operator #{id} #{name} unsubscribed from changed competence result: #{
-        inspect(result, pretty: true)
-      }"
+      "#{__MODULE__} Operator #{id} #{name} unsubscribed from changed competence result: #{inspect(result, pretty: true)}"
     end)
 
     {:noreply, state}
@@ -176,9 +170,7 @@ defmodule Sberbank.Pipeline.RabbitClient do
     result = Toolkit.subscribe_to_operator_queue(channel, operator, process_pid)
 
     Logger.info(fn ->
-      "#{__MODULE__} Subscription operator #{id} #{name} to queue result: #{
-        inspect(result, pretty: true)
-      }"
+      "#{__MODULE__} Subscription operator #{id} #{name} to queue result: #{inspect(result, pretty: true)}"
     end)
 
     {:noreply, state}

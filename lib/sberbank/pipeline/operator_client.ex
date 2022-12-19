@@ -224,9 +224,7 @@ defmodule Sberbank.Pipeline.OperatorClient do
 
   def handle_info(unexpected_handle_info, state) do
     Logger.error(fn ->
-      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}\nState: #{
-        inspect(state, pretty: true)
-      }"
+      "Unexpected handle info: #{inspect(unexpected_handle_info, pretty: true)}\nState: #{inspect(state, pretty: true)}"
     end)
 
     {:noreply, state}

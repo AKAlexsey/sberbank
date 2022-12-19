@@ -48,9 +48,7 @@ defmodule Sberbank.Pipeline.TicketsWorker do
     Eventbus.broadcast_repeat_push_ticket(ticket_id)
 
     Logger.info(fn ->
-      "#{__MODULE__} Leaving operator #{operator.name} form ticket #{ticket_id} result #{
-        inspect(result)
-      }"
+      "#{__MODULE__} Leaving operator #{operator.name} form ticket #{ticket_id} result #{inspect(result)}"
     end)
 
     {:noreply, state}
@@ -60,9 +58,7 @@ defmodule Sberbank.Pipeline.TicketsWorker do
     push_ticket_result = RabbitClient.initial_push_ticket(ticket)
 
     Logger.info(fn ->
-      "#{__MODULE__} Initial pushing ticket with ID: #{ticket.id} to queue result: #{
-        inspect(push_ticket_result)
-      }"
+      "#{__MODULE__} Initial pushing ticket with ID: #{ticket.id} to queue result: #{inspect(push_ticket_result)}"
     end)
 
     {:noreply, state}
@@ -73,9 +69,7 @@ defmodule Sberbank.Pipeline.TicketsWorker do
     push_ticket_result = RabbitClient.repeat_push_ticket(ticket_id)
 
     Logger.info(fn ->
-      "#{__MODULE__} Repeat pushing ticket with ID: #{ticket_id} to queue result: #{
-        inspect(push_ticket_result)
-      }"
+      "#{__MODULE__} Repeat pushing ticket with ID: #{ticket_id} to queue result: #{inspect(push_ticket_result)}"
     end)
 
     {:noreply, state}
